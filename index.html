@@ -120,15 +120,11 @@
   .product .pmeta{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-top:3px}
 
   .run{
-    width:100%;margin-top:18px;padding:16px;min-height:56px;background:var(--red);color:#fff;
+    width:100%;margin-top:12px;padding:16px;min-height:54px;background:var(--red);color:#fff;
     border:none;cursor:pointer;border-radius:6px;
     font-family:var(--mono);font-size:14px;letter-spacing:.16em;text-transform:uppercase;font-weight:800;
   }
   .run:hover{background:#f05a5f}
-  @media (max-width:560px){
-    .run{position:sticky;bottom:calc(10px + env(safe-area-inset-bottom));z-index:5;
-      box-shadow:0 6px 20px rgba(0,0,0,.55);border:1px solid #ff6b70}
-  }
 
   /* ---------- Verdict ---------- */
   .verdict{margin-top:24px;border:1px solid var(--line-2);display:none;border-radius:6px;overflow:hidden;background:var(--bg-2)}
@@ -307,10 +303,9 @@
 
     <div id="mode-text" style="display:none">
       <textarea id="ingredients" placeholder="Paste or type the ingredient list here.&#10;e.g. Water, Soybean Oil, High Fructose Corn Syrup, Red 40, BHA, Natural Flavors, Sodium Benzoate..."></textarea>
+      <button class="run" id="run">▶ Inspect</button>
     </div>
   </div>
-
-  <button class="run" id="run">▶ Inspect</button>
 
   <section class="verdict" id="verdict" aria-live="polite"></section>
 
