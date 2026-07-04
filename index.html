@@ -1,0 +1,871 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Label Inspector</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.0/tesseract.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<style>
+  :root{
+    --ink:#1b1d1a;
+    --paper:#e9e7df;
+    --paper-2:#dedbd0;
+    --line:#b7b3a6;
+    --muted:#5c5f57;
+    --danger:#a3231d;
+    --danger-bg:#f2d9d6;
+    --warning:#9a6100;
+    --warning-bg:#f2e6cf;
+    --contested:#3a4f6b;
+    --contested-bg:#d9e0ea;
+    --clear:#3f6b3a;
+    --clear-bg:#dbe6d6;
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+    --sans:ui-sans-serif,system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--sans);
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:820px;margin:0 auto;padding:22px 18px 80px}
+
+  /* Header — inspection placard */
+  header{
+    border:2px solid var(--ink);
+    background:var(--paper-2);
+    padding:14px 16px;
+    display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  }
+  .brand{display:flex;flex-direction:column;gap:2px}
+  .brand .kicker{
+    font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);
+  }
+  .brand h1{
+    margin:0;font-size:27px;letter-spacing:-.01em;font-weight:800;line-height:1;
+  }
+  .brand .sub{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.04em}
+  .stamp{
+    font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;
+    border:1.5px solid var(--muted);color:var(--muted);border-radius:2px;padding:5px 8px;transform:rotate(-3deg);
+    white-space:nowrap;
+  }
+
+  .note{
+    font-family:var(--mono);font-size:11.5px;color:var(--muted);
+    border-left:3px solid var(--line);padding:8px 12px;margin:14px 0 20px;background:var(--paper-2);
+  }
+
+  /* Input modes */
+  .modes{display:flex;gap:0;border:2px solid var(--ink);border-bottom:none;margin-top:6px}
+  .modes button{
+    flex:1;font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;
+    padding:14px 6px;min-height:48px;background:var(--paper-2);border:none;border-right:2px solid var(--ink);
+    cursor:pointer;color:var(--muted);
+  }
+  .modes button:last-child{border-right:none}
+  .modes button[aria-selected="true"]{background:var(--ink);color:var(--paper)}
+  .panel{border:2px solid var(--ink);padding:16px;background:var(--paper-2)}
+
+  textarea{
+    width:100%;min-height:130px;resize:vertical;font-family:var(--mono);font-size:13px;
+    padding:11px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);
+  }
+  textarea:focus,select:focus{outline:2px solid var(--contested);outline-offset:1px}
+  .filelabel{
+    display:inline-flex;align-items:center;gap:9px;font-family:var(--mono);font-size:12px;
+    border:1.5px dashed var(--muted);padding:12px 14px;cursor:pointer;background:var(--paper);width:100%;
+    justify-content:center;letter-spacing:.05em;text-transform:uppercase;color:var(--ink);
+    -webkit-appearance:none;appearance:none;border-radius:0;
+  }
+  .filelabel:hover{background:var(--paper-2)}
+  .filelabel{padding:16px 14px;font-size:13px;min-height:52px}
+  .filelabel.alt{margin-top:10px;border-style:solid;border-color:var(--line);color:var(--muted)}
+  input[type=file]{display:none}
+  .snap{
+    width:100%;margin:10px 0 14px;padding:16px;min-height:54px;
+    background:var(--danger);color:#fff;border:2px solid var(--ink);cursor:pointer;
+    font-family:var(--mono);font-size:14px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;
+  }
+  .snap:active{transform:scale(.99)}
+  #bcreader{width:100%;background:#000;border:1.5px solid var(--line)}
+  #bcreader:empty{display:none}
+  #bcreader video{width:100% !important;max-height:46vh;object-fit:cover}
+  .manualbc{display:flex;gap:8px;margin-top:12px}
+  .manualbc input{
+    flex:1;font-family:var(--mono);font-size:15px;padding:12px;border:1.5px solid var(--line);
+    background:var(--paper);color:var(--ink);min-width:0;
+  }
+  .manualbc input:focus{outline:2px solid var(--contested);outline-offset:1px}
+  .manualbc button{
+    font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;
+    padding:12px 16px;background:var(--ink);color:var(--paper);border:none;cursor:pointer;
+  }
+  .product{
+    margin-top:14px;border:1.5px solid var(--ink);background:var(--paper);padding:12px 14px;
+  }
+  .product .pname{font-weight:800;font-size:16px}
+  .product .pmeta{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:2px}
+  .product .ping{font-family:var(--mono);font-size:11.5px;margin-top:8px;color:#333;max-height:110px;overflow:auto;border-top:1px solid var(--line);padding-top:8px}
+  .ocrstate{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:10px;min-height:16px}
+  #preview{max-width:100%;margin-top:12px;border:1.5px solid var(--line);display:none}
+
+  /* Packaging */
+  fieldset{border:2px solid var(--ink);margin:18px 0 0;padding:14px 16px 16px;background:var(--paper-2)}
+  legend{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;padding:0 8px;font-weight:700}
+  .pkg-note{font-family:var(--mono);font-size:11px;color:var(--muted);margin:0 0 12px}
+  .checks{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px 16px}
+  .checks label{display:flex;gap:11px;align-items:flex-start;font-size:13.5px;cursor:pointer;padding:6px 4px;min-height:44px}
+  .checks input{margin-top:2px;accent-color:var(--contested);width:20px;height:20px;flex:none}
+  .checks .t{font-family:var(--mono);font-size:12.5px}
+  .checks .d{display:block;color:var(--muted);font-size:11px;font-family:var(--mono)}
+
+  .run{
+    width:100%;margin-top:20px;padding:17px;min-height:56px;background:var(--ink);color:var(--paper);border:none;cursor:pointer;
+    font-family:var(--mono);font-size:14px;letter-spacing:.18em;text-transform:uppercase;font-weight:700;
+  }
+  @media (max-width:560px){
+    .run{position:sticky;bottom:calc(10px + env(safe-area-inset-bottom));z-index:5;box-shadow:0 4px 14px rgba(0,0,0,.25);border:2px solid var(--paper)}
+  }
+  .run:hover{background:#000}
+  .run:disabled{opacity:.5;cursor:not-allowed}
+
+  /* Verdict */
+  .verdict{margin-top:26px;border:2px solid var(--ink);display:none}
+  .verdict.show{display:block}
+  .vhead{padding:16px;display:flex;align-items:center;gap:16px;border-bottom:2px solid var(--ink)}
+  .signal{
+    font-family:var(--mono);font-weight:800;font-size:20px;letter-spacing:.1em;text-transform:uppercase;
+    padding:10px 14px;border:2px solid var(--ink);white-space:nowrap;
+  }
+  .signal.danger{background:var(--danger-bg);color:var(--danger)}
+  .signal.warning{background:var(--warning-bg);color:var(--warning)}
+  .signal.contested{background:var(--contested-bg);color:var(--contested)}
+  .signal.clear{background:var(--clear-bg);color:var(--clear)}
+  .vcount{font-family:var(--mono);font-size:12px;color:var(--muted);line-height:1.7}
+  .vcount b{color:var(--ink)}
+
+  .group{border-bottom:1.5px solid var(--line)}
+  .group:last-child{border-bottom:none}
+  .ghead{
+    font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    padding:9px 16px;background:var(--paper-2);color:var(--muted);display:flex;justify-content:space-between;
+  }
+  .row{padding:12px 16px;display:flex;gap:13px;align-items:flex-start;border-top:1px solid var(--paper-2)}
+  .chit{
+    font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+    padding:4px 6px;border:1.5px solid;border-radius:2px;white-space:nowrap;margin-top:2px;flex:none;min-width:74px;text-align:center;
+  }
+  .chit.danger{color:var(--danger);border-color:var(--danger);background:var(--danger-bg)}
+  .chit.warning{color:var(--warning);border-color:var(--warning);background:var(--warning-bg)}
+  .chit.contested{color:var(--contested);border-color:var(--contested);background:var(--contested-bg)}
+  .rbody .name{font-weight:700;font-size:15px}
+  .rbody .cat{font-family:var(--mono);font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+  .rbody .desc{font-size:13.5px;color:#333;margin-top:4px}
+  .hit{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:3px}
+  .hit i{font-style:normal;color:var(--danger);background:#f2d9d655;padding:0 3px}
+
+  .clearbox{padding:20px 16px;font-family:var(--mono);font-size:13px;color:var(--clear);text-align:center}
+
+  footer{margin-top:26px;font-family:var(--mono);font-size:10.5px;color:var(--muted);line-height:1.7;border-top:1.5px solid var(--line);padding-top:14px}
+
+  /* Scan log */
+  .history{margin-top:22px;border:2px solid var(--ink)}
+  .hhead{
+    display:flex;justify-content:space-between;align-items:center;
+    font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;
+    padding:10px 14px;background:var(--paper-2);border-bottom:2px solid var(--ink);
+  }
+  .hhead button{
+    font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+    background:none;border:1.5px solid var(--muted);color:var(--muted);padding:5px 10px;cursor:pointer;
+  }
+  .hrow{
+    display:flex;align-items:center;gap:11px;padding:11px 14px;border-bottom:1px solid var(--paper-2);
+    cursor:pointer;min-height:48px;width:100%;background:none;border-left:none;border-right:none;border-top:none;
+    font-family:inherit;text-align:left;color:inherit;font-size:inherit;
+  }
+  .hrow:last-child{border-bottom:none}
+  .hrow:hover{background:var(--paper-2)}
+  .hrow .hname{font-weight:700;font-size:13.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hrow .hdate{font-family:var(--mono);font-size:10px;color:var(--muted);white-space:nowrap}
+
+  @media (max-width:560px){
+    .brand h1{font-size:22px}
+    .stamp{display:none}
+    .vhead{flex-direction:column;align-items:flex-start;gap:10px}
+  }
+  @media (prefers-reduced-motion:no-preference){
+    .verdict.show{animation:pop .25s ease}
+    @keyframes pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <span class="kicker">Ingredient · Additive · Packaging</span>
+      <h1>Label Inspector</h1>
+      <span class="sub">precautionary screen — flags first, verdict yours</span>
+    </div>
+    <div class="stamp">Screen only<br>not a lab result</div>
+  </header>
+
+  <p class="note">
+    Reads the ingredient list, matches it against a flag database, and infers packaging-migration risks
+    (BPA / phthalates / PFAS) that never print on a label. Leans cautious on purpose: contested items are
+    flagged too, tagged <b>CONTESTED</b> so you can weigh them yourself. Runs entirely on this page — nothing is uploaded.
+  </p>
+
+  <div class="modes" role="tablist">
+    <button role="tab" aria-selected="true" data-mode="barcode">▮▮ Barcode</button>
+    <button role="tab" aria-selected="false" data-mode="photo">📷 Photo</button>
+    <button role="tab" aria-selected="false" data-mode="text">Paste</button>
+  </div>
+
+  <div class="panel">
+    <div id="mode-barcode">
+      <div id="bcreader"></div>
+      <button type="button" class="snap" id="bcstart">▮▮ &nbsp;Start barcode scanner</button>
+      <div class="manualbc">
+        <input id="bcmanual" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="…or type the barcode number" aria-label="Barcode number">
+        <button type="button" id="bclookup">Look up</button>
+      </div>
+      <div class="ocrstate" id="bcstate">Point at the barcode (the striped UPC/EAN code). Product is looked up on Open Food Facts / Open Beauty Facts — only the barcode number is sent, nothing else.</div>
+      <div id="product" class="product" style="display:none"></div>
+    </div>
+
+    <div id="mode-photo" style="display:none">
+      <div id="livewrap" style="display:none">
+        <video id="livecam" playsinline autoplay muted style="width:100%;border:1.5px solid var(--line);background:#000;max-height:52vh;object-fit:cover"></video>
+        <button type="button" class="snap" id="snap">◉ &nbsp;Capture label</button>
+      </div>
+      <button type="button" class="filelabel" id="camlabel">📷 &nbsp;Take photo of label</button>
+      <input id="filein" type="file" accept="image/*" capture="environment">
+      <button type="button" class="filelabel alt" id="gallabel">▣ &nbsp;Pick from gallery</button>
+      <input id="galleryin" type="file" accept="image/*">
+      <div class="ocrstate" id="ocrstate">Fill the frame with the ingredient list — flat, well lit, close up. If reading misfires, the paste tab always works.</div>
+      <img id="preview" alt="label preview">
+      <canvas id="snapcanvas" style="display:none"></canvas>
+    </div>
+
+    <div id="mode-text" style="display:none">
+      <textarea id="ingredients" placeholder="Paste or type the ingredient list here.&#10;e.g. Water, Soybean Oil, High Fructose Corn Syrup, Red 40, BHA, Natural Flavors, Sodium Benzoate..."></textarea>
+    </div>
+  </div>
+
+  <fieldset>
+    <legend>Packaging</legend>
+    <p class="pkg-note">These aren't ingredients — they leach in from the container. Check what applies.</p>
+    <div class="checks" id="pkgchecks"></div>
+  </fieldset>
+
+  <button class="run" id="run">▶ Inspect</button>
+
+  <section class="verdict" id="verdict" aria-live="polite"></section>
+
+  <section class="history" id="history" style="display:none">
+    <div class="hhead">
+      <span>Scan log</span>
+      <button type="button" id="hclear">Clear</button>
+    </div>
+    <div id="hlist"></div>
+  </section>
+
+  <footer id="foot"></footer>
+</div>
+
+<script>
+"use strict";
+
+/* ---------- Flag database ----------
+   tier: danger | warning | contested
+   Notes state the concern plainly and, where it exists, the actual classification
+   (IARC group, banned/restricted somewhere, revoked). Contested = flagged as a
+   precaution, evidence disputed. */
+const DB = [
+  // ---- Seed / industrial oils (precautionary) ----
+  {name:"Soybean oil", tier:"contested", cat:"Seed / industrial oil", aliases:["soybean oil","soy oil"],
+   desc:"High-omega-6 refined seed oil. Flagged on the omega-6/inflammation and processing hypothesis — the human evidence for harm is disputed."},
+  {name:"Canola / rapeseed oil", tier:"contested", cat:"Seed / industrial oil", aliases:["canola oil","rapeseed oil"],
+   desc:"Refined, industrially processed seed oil. Same precautionary basis as other seed oils; health impact contested."},
+  {name:"Corn oil", tier:"contested", cat:"Seed / industrial oil", aliases:["corn oil"],
+   desc:"High-omega-6 refined oil. Precautionary flag; disputed evidence."},
+  {name:"Cottonseed oil", tier:"contested", cat:"Seed / industrial oil", aliases:["cottonseed oil"],
+   desc:"Refined seed oil from a non-food crop; may carry residual gossypol/processing concerns. Precautionary flag."},
+  {name:"Sunflower / safflower oil", tier:"contested", cat:"Seed / industrial oil", aliases:["sunflower oil","safflower oil"],
+   desc:"High-linoleic refined oils. Precautionary flag on the omega-6 hypothesis."},
+  {name:"Grapeseed / rice bran oil", tier:"contested", cat:"Seed / industrial oil", aliases:["grapeseed oil","grape seed oil","rice bran oil"],
+   desc:"Refined high-omega-6 oils. Precautionary flag."},
+  {name:'"Vegetable oil" (unspecified)', tier:"contested", cat:"Seed / industrial oil", aliases:["vegetable oil"],
+   desc:"Generic label — usually soybean/canola blend. Unspecified source; precautionary flag."},
+
+  // ---- Trans fats ----
+  {name:"Partially hydrogenated oil", tier:"danger", cat:"Trans fat", aliases:["partially hydrogenated"],
+   desc:"Artificial trans fat. FDA removed GRAS status (2018) and WHO targeted a global ban — strongest evidence link to heart disease of anything on this list."},
+  {name:"Hydrogenated oil", tier:"warning", cat:"Trans fat", aliases:["hydrogenated oil","fully hydrogenated"],
+   desc:"Fully hydrogenated is low in trans fat but heavily processed; 'hydrogenated' can still hide trace trans fat."},
+
+  // ---- Artificial colors ----
+  {name:"Red 3 (Erythrosine)", tier:"danger", cat:"Artificial color", aliases:["red 3","red no 3","erythrosine","fd c red 3"],
+   desc:"FDA revoked authorization for use in food (Jan 2025) over cancer findings in animal studies. Verify current product reformulation."},
+  {name:"Red 40 (Allura Red)", tier:"warning", cat:"Artificial color", aliases:["red 40","red no 40","allura red","fd c red 40"],
+   desc:"Petroleum-derived dye; linked to hyperactivity in children in some studies. Requires a warning label in the EU."},
+  {name:"Yellow 5 (Tartrazine)", tier:"warning", cat:"Artificial color", aliases:["yellow 5","yellow no 5","tartrazine","fd c yellow 5"],
+   desc:"Azo dye; EU warning-label requirement; hyperactivity and allergy concerns."},
+  {name:"Yellow 6 (Sunset Yellow)", tier:"warning", cat:"Artificial color", aliases:["yellow 6","yellow no 6","sunset yellow","fd c yellow 6"],
+   desc:"Azo dye with the same EU warning requirement and hyperactivity concerns."},
+  {name:"Blue 1 / Blue 2", tier:"warning", cat:"Artificial color", aliases:["blue 1","blue 2","blue no 1","blue no 2","brilliant blue","indigotine"],
+   desc:"Synthetic dyes flagged on the same behavioral/precautionary basis as other petroleum colors."},
+  {name:"Caramel color (III/IV)", tier:"warning", cat:"Artificial color", aliases:["caramel color","caramel colour"],
+   desc:"Ammonia-process caramel color can contain 4-MEI, an IARC Group 2B (possible carcinogen). California lists 4-MEI under Prop 65."},
+  {name:"Titanium dioxide", tier:"danger", cat:"Whitening additive", aliases:["titanium dioxide"],
+   desc:"Banned as a food additive in the EU (2022) over genotoxicity concerns from nanoparticles. Still allowed in the US."},
+
+  // ---- Preservatives ----
+  {name:"BHA", tier:"warning", cat:"Preservative", aliases:["bha","butylated hydroxyanisole"],
+   desc:"IARC Group 2B (possibly carcinogenic); listed under California Prop 65. Precautionary avoid."},
+  {name:"BHT", tier:"warning", cat:"Preservative", aliases:["bht","butylated hydroxytoluene"],
+   desc:"Related synthetic antioxidant; animal-study concerns and ongoing debate. Precautionary flag."},
+  {name:"TBHQ", tier:"warning", cat:"Preservative", aliases:["tbhq","tertiary butylhydroquinone","tert butylhydroquinone"],
+   desc:"Petroleum-derived preservative; immune-effect concerns in some studies. Precautionary flag."},
+  {name:"Potassium bromate", tier:"danger", cat:"Dough conditioner", aliases:["potassium bromate","bromated flour"],
+   desc:"IARC Group 2B; banned in the EU, UK, Canada and others. Still legal in the US."},
+  {name:"Azodicarbonamide", tier:"danger", cat:"Dough conditioner", aliases:["azodicarbonamide"],
+   desc:'The "yoga mat" chemical — banned as a food additive in the EU, UK and Australia.'},
+  {name:"Sodium nitrite / nitrate", tier:"warning", cat:"Curing preservative", aliases:["sodium nitrite","sodium nitrate","potassium nitrite","potassium nitrate"],
+   desc:"In cured meats, can form nitrosamines. Processed meat is IARC Group 1 (carcinogenic to humans)."},
+  {name:"Sodium benzoate", tier:"warning", cat:"Preservative", aliases:["sodium benzoate","benzoic acid","potassium benzoate"],
+   desc:"Can form benzene (a known carcinogen) when combined with vitamin C / ascorbic acid, especially in drinks."},
+  {name:"Sulfites", tier:"warning", cat:"Preservative", aliases:["sodium sulfite","sodium bisulfite","sodium metabisulfite","potassium metabisulfite","sulfur dioxide"],
+   desc:"Common trigger for asthmatic/allergic reactions; requires disclosure."},
+  {name:"Propyl gallate", tier:"warning", cat:"Preservative", aliases:["propyl gallate"],
+   desc:"Synthetic antioxidant with animal-study concerns. Precautionary flag."},
+  {name:"Parabens", tier:"warning", cat:"Preservative", aliases:["propylparaben","butylparaben","methylparaben","ethylparaben","paraben"],
+   desc:"Endocrine-disruption concern; EU restricts propyl/butylparaben. Common in cosmetics and some foods."},
+
+  // ---- Sweeteners ----
+  {name:"Aspartame", tier:"warning", cat:"Artificial sweetener", aliases:["aspartame"],
+   desc:"Classified IARC Group 2B (possibly carcinogenic) in 2023, though intake limits were left unchanged. Precautionary flag."},
+  {name:"Sucralose", tier:"contested", cat:"Artificial sweetener", aliases:["sucralose","splenda"],
+   desc:"Gut-microbiome and heat-breakdown concerns raised in recent studies; disputed. Precautionary flag."},
+  {name:"Acesulfame potassium", tier:"contested", cat:"Artificial sweetener", aliases:["acesulfame potassium","acesulfame k","ace k","acesulfame-k"],
+   desc:"Synthetic sweetener with limited long-term data. Precautionary flag."},
+  {name:"Saccharin", tier:"contested", cat:"Artificial sweetener", aliases:["saccharin"],
+   desc:"Former Prop 65 listing (delisted); historical bladder-cancer animal findings. Precautionary flag."},
+  {name:"High-fructose corn syrup", tier:"contested", cat:"Added sugar", aliases:["high fructose corn syrup","hfcs","high-fructose corn syrup"],
+   desc:"Cheap processed sweetener tied to metabolic-health concerns in observational data. Precautionary flag."},
+
+  // ---- Flavor / texture ----
+  {name:"MSG", tier:"contested", cat:"Flavor enhancer", aliases:["monosodium glutamate","msg"],
+   desc:"Self-reported sensitivity reactions; controlled studies have not consistently confirmed harm. Precautionary flag."},
+  {name:"Hidden glutamate", tier:"contested", cat:"Flavor enhancer", aliases:["autolyzed yeast","yeast extract","hydrolyzed protein","hydrolysed protein","disodium inosinate","disodium guanylate"],
+   desc:"Free-glutamate sources that function like MSG without the MSG label. Precautionary flag."},
+  {name:'"Natural flavors"', tier:"contested", cat:"Undisclosed additive", aliases:["natural flavor","natural flavors","natural flavour","natural flavours"],
+   desc:"A legal catch-all that can hide dozens of undisclosed processing aids and solvents. Flagged for opacity, not a specific toxin."},
+  {name:"Carrageenan", tier:"warning", cat:"Thickener", aliases:["carrageenan"],
+   desc:"Seaweed-derived thickener; degraded forms linked to gut inflammation in animal studies. Precautionary flag."},
+  {name:"Brominated vegetable oil (BVO)", tier:"danger", cat:"Emulsifier", aliases:["brominated vegetable oil","bvo"],
+   desc:"FDA revoked its food authorization (2024); long banned in the EU and Japan over bromine accumulation."},
+  {name:"Propylene glycol", tier:"contested", cat:"Humectant / solvent", aliases:["propylene glycol"],
+   desc:"Also an industrial solvent; approved as food-safe but a common precautionary flag."},
+  {name:"Maltodextrin", tier:"contested", cat:"Filler / carb", aliases:["maltodextrin"],
+   desc:"Highly processed starch with a very high glycemic index; gut-microbiome concerns raised. Precautionary flag."},
+  {name:"Phosphoric acid", tier:"contested", cat:"Acidulant", aliases:["phosphoric acid"],
+   desc:"In colas; associated with lower bone density in some observational studies. Precautionary flag."},
+
+  // ---- Cosmetic / external-product specific ----
+  {name:"Phthalates (named)", tier:"danger", cat:"Plasticizer (cosmetic)", aliases:["diethyl phthalate","dibutyl phthalate","dep","dbp","dehp","phthalate"],
+   desc:"Endocrine-disrupting plasticizers. Restricted in EU cosmetics; often hidden under 'fragrance'."},
+  {name:"Formaldehyde releasers", tier:"danger", cat:"Preservative (cosmetic)", aliases:["dmdm hydantoin","quaternium-15","imidazolidinyl urea","diazolidinyl urea","formaldehyde"],
+   desc:"Slowly release formaldehyde, an IARC Group 1 carcinogen. Common in shampoos and lotions."},
+  {name:'"Fragrance" / "Parfum"', tier:"warning", cat:"Undisclosed (cosmetic)", aliases:["fragrance","parfum"],
+   desc:"Trade-secret blend that frequently conceals phthalates and allergens. Flagged for opacity."},
+  {name:"PEG compounds", tier:"contested", cat:"Surfactant (cosmetic)", aliases:["peg-","polyethylene glycol"],
+   desc:"Can carry 1,4-dioxane (a probable carcinogen) as a manufacturing contaminant. Precautionary flag."},
+  {name:"SLS / SLES", tier:"contested", cat:"Surfactant (cosmetic)", aliases:["sodium lauryl sulfate","sodium laureth sulfate","sls","sles"],
+   desc:"Harsh surfactant; SLES can carry trace 1,4-dioxane. Irritation and precautionary flag."},
+  {name:"Oxybenzone", tier:"warning", cat:"UV filter (cosmetic)", aliases:["oxybenzone","benzophenone-3"],
+   desc:"Endocrine-disruption concern; banned in some reef-protection jurisdictions. Precautionary flag."},
+  {name:"Triclosan", tier:"warning", cat:"Antibacterial (cosmetic)", aliases:["triclosan"],
+   desc:"FDA barred it from consumer hand soaps (2016) over safety/resistance concerns."},
+  {name:"PFAS / fluoro-ingredients", tier:"danger", cat:"Forever chemical (cosmetic)", aliases:["ptfe","perfluoro","polyfluoro","fluoro","teflon"],
+   desc:"'Forever chemicals' — persistent, bioaccumulative. Appear in some cosmetics under fluoro/PTFE names."},
+  {name:"Talc", tier:"warning", cat:"Powder (cosmetic)", aliases:["talc"],
+   desc:"Can be contaminated with asbestos depending on source; subject of major litigation. Precautionary flag."},
+];
+
+/* ---------- Packaging inference ---------- */
+const PKG = [
+  {id:"can", t:"Canned / metal", d:"BPA or BPS can lining", tier:"warning",
+   name:"Can-lining bisphenols (BPA/BPS)", cat:"Packaging migration",
+   desc:"Metal cans are usually lined with epoxy resin that can leach BPA/BPS into food — worse with acidic or fatty contents."},
+  {id:"plastic", t:"Plastic bottle / tub", d:"Bisphenol & phthalate leach", tier:"warning",
+   name:"Plastic-container migration (BPA / phthalates)", cat:"Packaging migration",
+   desc:"Plastics #3, #6, #7 can leach bisphenols and phthalates, especially when heated, oily, or reused."},
+  {id:"heat", t:"Microwaved in packaging", d:"Accelerated leaching", tier:"danger",
+   name:"Heated-plastic migration", cat:"Packaging migration",
+   desc:"Heating food in its plastic packaging sharply accelerates migration of plasticizers and bisphenols into the food."},
+  {id:"grease", t:"Grease-resistant wrapper / fast-food", d:"PFAS coating", tier:"danger",
+   name:"PFAS in grease-resistant packaging", cat:"Packaging migration",
+   desc:"Wrappers, molded-fiber bowls and takeout containers are often treated with PFAS 'forever chemicals' that migrate into oily food."},
+  {id:"popcorn", t:"Microwave popcorn bag", d:"PFAS lining", tier:"danger",
+   name:"PFAS in microwave popcorn bags", cat:"Packaging migration",
+   desc:"Bag linings have been a documented PFAS source; heat drives transfer into the oil and butter flavoring."},
+  {id:"cling", t:"Plastic wrap / cling film", d:"Plasticizer transfer", tier:"warning",
+   name:"Cling-film plasticizers", cat:"Packaging migration",
+   desc:"Some films use phthalate/adipate plasticizers that migrate into fatty foods on contact."},
+  {id:"receipt", t:"Thermal receipt handling (external)", d:"Skin BPA/BPS", tier:"warning",
+   name:"Thermal-paper bisphenols", cat:"Contact exposure",
+   desc:"Thermal receipts are coated with BPA/BPS that transfers to skin — relevant for non-food products and handling."},
+  {id:"pvc", t:"Vinyl / PVC product (external)", d:"Phthalate content", tier:"warning",
+   name:"PVC phthalates", cat:"Material content",
+   desc:"Flexible vinyl (shower curtains, cables, some toys) is commonly softened with phthalates that off-gas or transfer."},
+];
+
+/* ---------- Build packaging checkboxes ---------- */
+const pkgWrap = document.getElementById("pkgchecks");
+PKG.forEach(p=>{
+  const l=document.createElement("label");
+  l.innerHTML = `<input type="checkbox" value="${p.id}">
+    <span><span class="t">${p.t}</span><span class="d">${p.d}</span></span>`;
+  pkgWrap.appendChild(l);
+});
+
+/* ---------- Mode switching ---------- */
+const tabs=[...document.querySelectorAll('.modes button')];
+tabs.forEach(b=>b.addEventListener('click',()=>{
+  tabs.forEach(x=>x.setAttribute('aria-selected', x===b));
+  const m=b.dataset.mode;
+  document.getElementById('mode-barcode').style.display = m==='barcode'?'block':'none';
+  document.getElementById('mode-text').style.display = m==='text'?'block':'none';
+  document.getElementById('mode-photo').style.display = m==='photo'?'block':'none';
+  if(m!=='photo' && typeof stopCamera==='function') stopCamera();
+  if(m==='photo' && typeof tryLiveCamera==='function' && !stream) tryLiveCamera();
+  if(m!=='barcode' && typeof stopBarcode==='function') stopBarcode();
+}));
+
+/* ---------- Camera + OCR ---------- */
+const ocrState=document.getElementById('ocrstate');
+const preview=document.getElementById('preview');
+const liveWrap=document.getElementById('livewrap');
+const liveCam=document.getElementById('livecam');
+const camLabel=document.getElementById('camlabel');
+let stream=null;
+
+// Try a live in-page viewfinder. If blocked (common in in-app browsers),
+// silently fall back to the "Take photo" button, which opens the native camera.
+async function tryLiveCamera(){
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:{ideal:"environment"},width:{ideal:1920}},audio:false
+    });
+    liveCam.srcObject=stream;
+    liveWrap.style.display='block';
+    camLabel.textContent="📷  Use native camera instead";
+  }catch(e){ /* fall back to native camera via file input — no error shown */ }
+}
+// (started when the Photo tab is opened)
+
+document.getElementById('snap').addEventListener('click', ()=>{
+  const c=document.getElementById('snapcanvas');
+  const w=liveCam.videoWidth, h=liveCam.videoHeight;
+  if(!w||!h){ ocrState.textContent="Camera not ready yet — give it a second."; return; }
+  c.width=w; c.height=h;
+  c.getContext('2d').drawImage(liveCam,0,0,w,h);
+  c.toBlob(b=>{ if(b) runOcr(URL.createObjectURL(b)); }, 'image/jpeg', 0.92);
+});
+
+function onFilePicked(e){
+  const file=e.target.files && e.target.files[0];
+  if(!file) return;
+  pickerOpened=true;
+  runOcr(URL.createObjectURL(file));
+  e.target.value=""; // allow re-picking the same file
+}
+document.getElementById('filein').addEventListener('change', onFilePicked);
+document.getElementById('galleryin').addEventListener('change', onFilePicked);
+
+// Buttons trigger the hidden inputs programmatically (labels are ignored by some webviews)
+let pickerOpened=false;
+function openPicker(id){
+  document.getElementById(id).click();
+  // If nothing happens, we're likely in a sandboxed preview that blocks file pickers
+  setTimeout(()=>{
+    if(!pickerOpened && !document.hasFocus()) return; // picker probably opened (page lost focus)
+    if(!pickerOpened){
+      ocrState.textContent="⚠ This preview blocks the camera/file picker. Download the file and open it in Safari or Chrome — it works there.";
+    }
+  }, 1200);
+}
+document.getElementById('camlabel').addEventListener('click', ()=>openPicker('filein'));
+document.getElementById('gallabel').addEventListener('click', ()=>openPicker('galleryin'));
+
+// Bonus input path that works even in restricted environments: paste an image
+document.addEventListener('paste', (e)=>{
+  const items=e.clipboardData && e.clipboardData.items;
+  if(!items) return;
+  for(const it of items){
+    if(it.type && it.type.startsWith('image/')){
+      const f=it.getAsFile();
+      if(f){ runOcr(URL.createObjectURL(f)); }
+      break;
+    }
+  }
+});
+
+async function runOcr(url){
+  preview.src=url; preview.style.display='block';
+  if(typeof Tesseract==="undefined"){
+    ocrState.textContent="Text-recognition engine didn't load (check connection). Use the paste tab instead.";
+    return;
+  }
+  ocrState.textContent="Reading label… 0%";
+  try{
+    const {data}=await Tesseract.recognize(url,'eng',{
+      logger:m=>{ if(m.status==='recognizing text'){ ocrState.textContent="Reading label… "+Math.round(m.progress*100)+"%"; } }
+    });
+    const text=(data && data.text || "").trim();
+    if(text && text.replace(/\s/g,"").length>=8){
+      document.getElementById('ingredients').value=text;
+      ocrState.textContent="✓ Read. Inspecting now — fix any misread words in the paste tab if needed.";
+      run(); // auto-inspect on successful read
+    }else{
+      ocrState.textContent="Couldn't read useful text. Get closer, flatten the label, avoid glare — or paste it in.";
+    }
+  }catch(err){
+    ocrState.textContent="Reading failed on this device. Use the paste tab instead.";
+  }
+}
+
+// Release camera when leaving photo mode
+function stopCamera(){
+  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; liveWrap.style.display='none'; }
+}
+
+/* ---------- Barcode scanning + product lookup ---------- */
+const bcState=document.getElementById('bcstate');
+const productBox=document.getElementById('product');
+let bcScanner=null, bcRunning=false;
+
+document.getElementById('bcstart').addEventListener('click', async ()=>{
+  if(bcRunning){ stopBarcode(); return; }
+
+  // Diagnose the environment before blaming the camera
+  if(location.protocol==='file:'){
+    bcState.textContent="⚠ You've opened this as a local file (file://). Browsers only allow camera access on HTTPS pages — host the file (e.g. GitHub Pages, free) and open the https:// link instead. Manual barcode entry below still works.";
+    return;
+  }
+  if(!window.isSecureContext){
+    bcState.textContent="⚠ This page isn't loaded over HTTPS, so the browser disables all camera APIs. Open the https:// version. Manual barcode entry below still works.";
+    return;
+  }
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    bcState.textContent="⚠ This environment blocks camera APIs (sandboxed preview or restricted webview). Open the app in a normal browser tab over HTTPS. Manual entry below still works.";
+    return;
+  }
+  if(typeof Html5Qrcode==="undefined"){
+    bcState.textContent="⚠ Scanner library didn't load (check connection). Type the barcode number instead — it's under the stripes.";
+    return;
+  }
+  try{
+    bcScanner=new Html5Qrcode("bcreader",{
+      formatsToSupport:[
+        Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A,  Html5QrcodeSupportedFormats.UPC_E
+      ]
+    });
+    await bcScanner.start(
+      {facingMode:"environment"},
+      {fps:10, qrbox:{width:280,height:140}},
+      (code)=>{ stopBarcode(); lookupBarcode(code); },
+      ()=>{} // per-frame misses are normal; stay quiet
+    );
+    bcRunning=true;
+    document.getElementById('bcstart').textContent="■  Stop scanner";
+    bcState.textContent="Scanning… hold the barcode steady in the box, 6–10 inches away.";
+  }catch(err){
+    const n=err && err.name;
+    if(n==='NotAllowedError'){
+      bcState.textContent="⚠ Camera permission denied. Tap the lock/lion icon in the address bar → Site settings → Camera → Allow, then try again.";
+    }else if(n==='NotFoundError'){
+      bcState.textContent="⚠ No camera found on this device. Use manual barcode entry below.";
+    }else if(n==='NotReadableError'){
+      bcState.textContent="⚠ Camera is busy (another app is using it). Close other camera apps and retry.";
+    }else{
+      bcState.textContent="⚠ Camera failed to start ("+(n||"unknown")+"). Manual barcode entry below still works.";
+    }
+  }
+});
+
+function stopBarcode(){
+  if(bcScanner && bcRunning){
+    bcScanner.stop().then(()=>bcScanner.clear()).catch(()=>{});
+  }
+  bcRunning=false;
+  const btn=document.getElementById('bcstart');
+  if(btn) btn.textContent="▮▮  Start barcode scanner";
+}
+
+document.getElementById('bclookup').addEventListener('click', ()=>{
+  const code=document.getElementById('bcmanual').value.replace(/\D/g,'');
+  if(code.length<8){ bcState.textContent="That doesn't look like a barcode — UPC/EAN codes are 8–13 digits."; return; }
+  lookupBarcode(code);
+});
+document.getElementById('bcmanual').addEventListener('keydown', e=>{
+  if(e.key==='Enter') document.getElementById('bclookup').click();
+});
+
+const SOURCES=[
+  {label:"Open Food Facts",     url:c=>`https://world.openfoodfacts.org/api/v2/product/${c}.json`},
+  {label:"Open Beauty Facts",   url:c=>`https://world.openbeautyfacts.org/api/v2/product/${c}.json`},
+  {label:"Open Products Facts", url:c=>`https://world.openproductsfacts.org/api/v2/product/${c}.json`},
+];
+
+async function lookupBarcode(code){
+  bcState.textContent=`Looking up ${code}…`;
+  productBox.style.display='none';
+  for(const src of SOURCES){
+    try{
+      const r=await fetch(src.url(code));
+      if(!r.ok) continue;
+      const j=await r.json();
+      if(j && j.status===1 && j.product){
+        return showProduct(j.product, code, src.label);
+      }
+    }catch(e){ /* network hiccup — try next source */ }
+  }
+  bcState.textContent=`✗ ${code} isn't in any of the three open databases. Use the Photo or Paste tab for this one — and once you're done, adding it to openfoodfacts.org helps the next person.`;
+}
+
+function showProduct(p, code, srcLabel){
+  const name=p.product_name || p.product_name_en || "(unnamed product)";
+  const brand=p.brands || "";
+  const ing=(p.ingredients_text_en || p.ingredients_text || "").trim();
+  currentLabel = (brand?brand+" ":"")+name;
+
+  productBox.style.display='block';
+  productBox.innerHTML=`
+    <div class="pname">${escapeHtml(name)}</div>
+    <div class="pmeta">${escapeHtml(brand)}${brand?' · ':''}${code} · ${srcLabel}</div>
+    ${ing?`<div class="ping">${escapeHtml(ing)}</div>`
+         :`<div class="ping">No ingredient list on file for this product — scan the label with the Photo tab instead.</div>`}`;
+
+  // Auto-check packaging boxes from the product's packaging data
+  const pkgText=[p.packaging, p.packaging_text, (p.packaging_tags||[]).join(" ")]
+    .filter(Boolean).join(" ").toLowerCase();
+  let autoPkg=[];
+  const MAP=[
+    [/(^|\W)(can|tin|aluminium|aluminum|metal)(\W|$)/, "can"],
+    [/plastic|pet\b|hdpe|tub|bottle/, "plastic"],
+    [/film|cling|wrap\b/, "cling"],
+  ];
+  for(const [re,id] of MAP){
+    if(re.test(pkgText)){
+      const box=document.querySelector(`#pkgchecks input[value="${id}"]`);
+      if(box && !box.checked){ box.checked=true; autoPkg.push(id); }
+    }
+  }
+
+  if(ing){
+    document.getElementById('ingredients').value=ing;
+    bcState.textContent="✓ Found. Inspecting…"+(autoPkg.length?` (packaging auto-detected: ${autoPkg.join(", ")})`:"");
+    run();
+  }else{
+    bcState.textContent="Product found but no ingredients on file — use the Photo tab on the label itself.";
+  }
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ---------- Matching ---------- */
+function normalize(s){ return (" "+s.toLowerCase().replace(/[^a-z0-9]+/g," ").replace(/\s+/g," ")+" "); }
+
+function findFlags(raw){
+  const text=normalize(raw);
+  const found=[];
+  for(const entry of DB){
+    let hit=null;
+    for(const a of entry.aliases){
+      const na=a.toLowerCase();
+      const needle = na.endsWith("-") ? " "+na : " "+na+" ";
+      // for prefix aliases like "peg-" allow "peg " match too
+      if(text.includes(needle) || (na.endsWith("-") && text.includes(" "+na.slice(0,-1)+" "))){
+        hit=a; break;
+      }
+    }
+    if(hit) found.push({...entry, hit});
+  }
+  return found;
+}
+
+const TIER_RANK={danger:0,warning:1,contested:2};
+const TIER_LABEL={danger:"Avoid",warning:"Caution",contested:"Contested"};
+
+/* ---------- Run ---------- */
+document.getElementById('run').addEventListener('click', run);
+
+function run(){
+  const raw=document.getElementById('ingredients').value.trim();
+  const checked=[...document.querySelectorAll('#pkgchecks input:checked')].map(i=>i.value);
+
+  if(!raw && checked.length===0){
+    renderEmpty();
+    return;
+  }
+
+  let flags = raw ? findFlags(raw) : [];
+  const pkgFlags = PKG.filter(p=>checked.includes(p.id))
+    .map(p=>({name:p.name,tier:p.tier,cat:p.cat,desc:p.desc,hit:null,pkg:true}));
+
+  flags = flags.concat(pkgFlags);
+  flags.sort((a,b)=>TIER_RANK[a.tier]-TIER_RANK[b.tier]);
+
+  render(flags, raw, checked.length);
+}
+
+function renderEmpty(){
+  const v=document.getElementById('verdict');
+  v.className="verdict show";
+  v.innerHTML=`<div class="clearbox">Nothing to inspect. Paste an ingredient list or check a packaging box, then Inspect.</div>`;
+}
+
+function render(flags, raw, pkgCount){
+  const v=document.getElementById('verdict');
+  v.className="verdict show";
+
+  const counts={danger:0,warning:0,contested:0};
+  flags.forEach(f=>counts[f.tier]++);
+
+  let signal, sclass;
+  if(counts.danger>0){signal="Avoid";sclass="danger";}
+  else if(counts.warning>0){signal="Caution";sclass="warning";}
+  else if(counts.contested>0){signal="Review";sclass="contested";}
+  else {signal="No flags";sclass="clear";}
+
+  logScan(flags, raw, counts, signal);
+
+  let html=`<div class="vhead">
+      <div class="signal ${sclass}">${signal}</div>
+      <div class="vcount">
+        <b>${counts.danger}</b> avoid &nbsp;·&nbsp; <b>${counts.warning}</b> caution &nbsp;·&nbsp; <b>${counts.contested}</b> contested<br>
+        ${raw?`Scanned ingredient text`:`No ingredient text`}${pkgCount?` · ${pkgCount} packaging factor${pkgCount>1?'s':''}`:''}
+      </div>
+    </div>`;
+
+  if(flags.length===0){
+    html+=`<div class="clearbox">No database matches in this list. That means nothing on the flag list appeared — not a clean bill of health. Short, vague, or poorly-read text can hide plenty.</div>`;
+    v.innerHTML=html;
+    scrollToVerdict();
+    return;
+  }
+
+  ["danger","warning","contested"].forEach(tier=>{
+    const rows=flags.filter(f=>f.tier===tier);
+    if(!rows.length) return;
+    html+=`<div class="group"><div class="ghead"><span>${TIER_LABEL[tier]}</span><span>${rows.length}</span></div>`;
+    rows.forEach(f=>{
+      html+=`<div class="row">
+        <span class="chit ${tier}">${TIER_LABEL[tier]}</span>
+        <div class="rbody">
+          <span class="name">${f.name}</span> &nbsp;<span class="cat">${f.cat}</span>
+          <div class="desc">${f.desc}</div>
+          ${f.hit?`<div class="hit">matched: <i>${f.hit}</i></div>`:`<div class="hit">inferred from packaging</div>`}
+        </div>
+      </div>`;
+    });
+    html+=`</div>`;
+  });
+
+  v.innerHTML=html;
+  scrollToVerdict();
+}
+
+function scrollToVerdict(){
+  document.getElementById('verdict').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+/* ---------- Scan log ---------- */
+let currentLabel=null;        // set by barcode lookups, cleared on manual runs
+let suppressLog=false;        // true when re-viewing a logged scan
+let memHistory=[];            // in-memory fallback when storage is blocked
+const HKEY="labelInspectorLog";
+
+function loadHistory(){
+  try{
+    const raw=localStorage.getItem(HKEY);
+    return raw?JSON.parse(raw):[];
+  }catch(e){ return memHistory; }
+}
+function saveHistory(list){
+  memHistory=list;
+  try{ localStorage.setItem(HKEY, JSON.stringify(list)); }catch(e){ /* preview blocks storage — session-only */ }
+}
+
+function logScan(flags, raw, counts, signal){
+  if(suppressLog){ suppressLog=false; return; }
+  let label=currentLabel;
+  if(!label){
+    // derive a short label from the ingredient text
+    const words=(raw||"").split(/[\s,]+/).filter(Boolean).slice(0,4).join(" ");
+    label=words?words+"…":"Packaging-only check";
+  }
+  currentLabel=null;
+  const list=loadHistory();
+  list.unshift({
+    label:label.slice(0,80),
+    signal, counts,
+    raw:(raw||"").slice(0,4000),
+    ts:Date.now()
+  });
+  if(list.length>50) list.length=50;
+  saveHistory(list);
+  renderHistory();
+}
+
+function renderHistory(){
+  const list=loadHistory();
+  const box=document.getElementById('history');
+  const el=document.getElementById('hlist');
+  if(!list.length){ box.style.display='none'; return; }
+  box.style.display='block';
+  el.innerHTML='';
+  list.forEach((item,i)=>{
+    const d=new Date(item.ts);
+    const when=d.toLocaleDateString(undefined,{month:'short',day:'numeric'})+" "+
+               d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
+    const sclass=item.signal==="Avoid"?"danger":item.signal==="Caution"?"warning":item.signal==="Review"?"contested":"clear";
+    const row=document.createElement('button');
+    row.type="button"; row.className="hrow";
+    row.innerHTML=`<span class="chit ${sclass}" style="margin-top:0">${escapeHtml(item.signal)}</span>
+      <span class="hname">${escapeHtml(item.label)}</span>
+      <span class="hdate">${when}</span>`;
+    row.addEventListener('click',()=>{
+      document.getElementById('ingredients').value=item.raw||"";
+      currentLabel=item.label;
+      suppressLog=true;
+      run();
+    });
+    el.appendChild(row);
+  });
+}
+
+document.getElementById('hclear').addEventListener('click',()=>{
+  saveHistory([]);
+  renderHistory();
+});
+
+renderHistory();
+
+/* ---------- Footer ---------- */
+document.getElementById('foot').innerHTML =
+  `Database entries: ${DB.length} ingredients · ${PKG.length} packaging factors. `+
+  `Tiers — AVOID: regulatory action somewhere or strong classification (IARC, bans, revocations). `+
+  `CAUTION: meaningful safety questions. CONTESTED: flagged as a precaution, evidence disputed. `+
+  `Regulatory status changes; verify anything you act on. This is a screening aid, not medical or lab advice.`;
+</script>
