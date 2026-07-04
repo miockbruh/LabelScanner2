@@ -155,6 +155,14 @@
   }
   .ingrow{border-top:1px solid var(--line);padding:0 8px}
   .ingrow.plain{padding:10px 16px;font-size:14px;color:#c9c7c3}
+  .ingrow.plain.unclassified{
+    font-family:var(--mono);font-size:12px;color:var(--muted);
+    border-left:3px solid var(--line-2);
+  }
+  .ingrow.plain.benign{
+    font-family:var(--mono);font-size:12px;color:var(--green);
+    border-left:3px solid #2c4a2e;opacity:.85;
+  }
   details.ingrow{padding:0}
   details.ingrow summary{
     list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;
@@ -197,6 +205,17 @@
   .pkgcard .prow{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
   .pkgcard .pt{font-weight:700;font-size:14px}
   .pkgcard .pdesc{font-size:13px;color:#b6b4b0;margin-top:4px;line-height:1.55}
+  .pact{
+    margin-top:10px;border-left:2px solid var(--red-dim);padding:8px 0 8px 12px;background:var(--bg);border-radius:0 4px 4px 0;
+  }
+  .palabel{
+    font-family:var(--mono);font-size:9px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--red);margin-bottom:6px;
+  }
+  .pa{
+    font-size:13px;color:#d5d3cf;line-height:1.5;padding:3px 0 3px 16px;position:relative;
+  }
+  .pa::before{content:"→";position:absolute;left:0;color:var(--red);font-family:var(--mono);font-size:11px;top:5px}
   .detected{
     font-family:var(--mono);font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;
     color:#fff;background:var(--red);border-radius:3px;padding:3px 7px;
@@ -305,8 +324,8 @@
 
   <section class="pkg" id="pkgpanel">
     <div class="phead">
-      <div class="t">Packaging exposure — never on the label</div>
-      <div class="s">BPA, phthalates and PFAS aren't ingredients; they migrate from the container into what's inside. No scanner can read them off an ingredient list — know the container types instead. When a barcode lookup includes packaging data, matches below get marked.</div>
+      <div class="t">Hidden exposures — never on the label</div>
+      <div class="s">BPA, phthalates, PFAS, solvent residues, heavy metals and microplastics aren't ingredients — they migrate from packaging, form during processing, or contaminate the supply chain. No scanner can read them off a label, so know the routes instead. Where brands are named: a recall means the company acted; published testing means measured results; a lawsuit "alleges" means a claim not yet proven. Products reformulate — treat brand lists as dated snapshots. When a barcode lookup includes packaging data, matching cards get marked.</div>
     </div>
     <div id="pkglist"></div>
   </section>
@@ -343,75 +362,187 @@ const DB = [
    desc:"Fully hydrogenated is low in trans fat but heavily processed; 'hydrogenated' can still hide trace trans fat."},
 
   // ---- Artificial colors ----
-  {name:"Red 3 (Erythrosine)", tier:"danger", cat:"Artificial color", aliases:["red 3","red no 3","erythrosine","fd c red 3"],
+  {name:"Red 3 (Erythrosine)", tier:"danger", cat:"Artificial color", aliases:["red 3","red no 3","erythrosine","fd c red 3","e127"],
    desc:"FDA revoked authorization for use in food (Jan 2025) over cancer findings in animal studies. Verify current product reformulation."},
-  {name:"Red 40 (Allura Red)", tier:"warning", cat:"Artificial color", aliases:["red 40","red no 40","allura red","fd c red 40"],
+  {name:"Red 40 (Allura Red)", tier:"warning", cat:"Artificial color", aliases:["red 40","red no 40","allura red","fd c red 40","e129"],
    desc:"Petroleum-derived dye; linked to hyperactivity in children in some studies. Requires a warning label in the EU."},
-  {name:"Yellow 5 (Tartrazine)", tier:"warning", cat:"Artificial color", aliases:["yellow 5","yellow no 5","tartrazine","fd c yellow 5"],
+  {name:"Yellow 5 (Tartrazine)", tier:"warning", cat:"Artificial color", aliases:["yellow 5","yellow no 5","tartrazine","fd c yellow 5","e102"],
    desc:"Azo dye; EU warning-label requirement; hyperactivity and allergy concerns."},
-  {name:"Yellow 6 (Sunset Yellow)", tier:"warning", cat:"Artificial color", aliases:["yellow 6","yellow no 6","sunset yellow","fd c yellow 6"],
+  {name:"Yellow 6 (Sunset Yellow)", tier:"warning", cat:"Artificial color", aliases:["yellow 6","yellow no 6","sunset yellow","fd c yellow 6","e110"],
    desc:"Azo dye with the same EU warning requirement and hyperactivity concerns."},
-  {name:"Blue 1 / Blue 2", tier:"warning", cat:"Artificial color", aliases:["blue 1","blue 2","blue no 1","blue no 2","brilliant blue","indigotine"],
+  {name:"Blue 1 / Blue 2", tier:"warning", cat:"Artificial color", aliases:["blue 1","blue 2","blue no 1","blue no 2","brilliant blue","indigotine","e133","e132"],
    desc:"Synthetic dyes flagged on the same behavioral/precautionary basis as other petroleum colors."},
-  {name:"Caramel color (III/IV)", tier:"warning", cat:"Artificial color", aliases:["caramel color","caramel colour"],
+  {name:"Caramel color (III/IV)", tier:"warning", cat:"Artificial color", aliases:["caramel color","caramel colour","e150c","e150d"],
    desc:"Ammonia-process caramel color can contain 4-MEI, an IARC Group 2B (possible carcinogen). California lists 4-MEI under Prop 65."},
-  {name:"Titanium dioxide", tier:"danger", cat:"Whitening additive", aliases:["titanium dioxide"],
-   desc:"Banned as a food additive in the EU (2022) over genotoxicity concerns from nanoparticles. Still allowed in the US."},
+  {name:"Titanium dioxide", tier:"danger", cat:"Whitening additive", aliases:["titanium dioxide","e171"],
+   desc:"Banned as a food additive in the EU (2022) over genotoxicity concerns from nanoparticles. Still allowed in the US, where a petition to revoke its color-additive listing is under review."},
 
   // ---- Preservatives ----
-  {name:"BHA", tier:"warning", cat:"Preservative", aliases:["bha","butylated hydroxyanisole"],
-   desc:"IARC Group 2B (possibly carcinogenic); listed under California Prop 65. Precautionary avoid."},
-  {name:"BHT", tier:"warning", cat:"Preservative", aliases:["bht","butylated hydroxytoluene"],
-   desc:"Related synthetic antioxidant; animal-study concerns and ongoing debate."},
-  {name:"TBHQ", tier:"warning", cat:"Preservative", aliases:["tbhq","tertiary butylhydroquinone","tert butylhydroquinone"],
+  {name:"BHA", tier:"warning", cat:"Preservative", aliases:["bha","butylated hydroxyanisole","e320"],
+   desc:"IARC Group 2B (possibly carcinogenic); California Prop 65 listed. FDA opened a formal post-market safety reassessment in Feb 2026, with a decades-old ban petition still pending."},
+  {name:"BHT", tier:"warning", cat:"Preservative", aliases:["bht","butylated hydroxytoluene","e321"],
+   desc:"Related synthetic antioxidant; animal-study concerns. FDA opened a request for information in May 2026 as part of its post-market reassessment program."},
+  {name:"TBHQ", tier:"warning", cat:"Preservative", aliases:["tbhq","tertiary butylhydroquinone","tert butylhydroquinone","e319"],
    desc:"Petroleum-derived preservative; immune-effect concerns in some studies."},
-  {name:"Potassium bromate", tier:"danger", cat:"Dough conditioner", aliases:["potassium bromate","bromated flour"],
+  {name:"Potassium bromate", tier:"danger", cat:"Dough conditioner", aliases:["potassium bromate","bromated flour","e924"],
    desc:"IARC Group 2B; banned in the EU, UK, Canada and others. Still legal in the US."},
-  {name:"Azodicarbonamide", tier:"danger", cat:"Dough conditioner", aliases:["azodicarbonamide"],
-   desc:'The "yoga mat" chemical — banned as a food additive in the EU, UK and Australia.'},
-  {name:"Sodium nitrite / nitrate", tier:"warning", cat:"Curing preservative", aliases:["sodium nitrite","sodium nitrate","potassium nitrite","potassium nitrate"],
+  {name:"Azodicarbonamide", tier:"danger", cat:"Dough conditioner", aliases:["azodicarbonamide","e927a"],
+   desc:'The "yoga mat" chemical — banned as a food additive in the EU, UK and Australia. FDA has slated it for post-market reassessment following BHA and BHT.'},
+  {name:"Sodium nitrite / nitrate", tier:"warning", cat:"Curing preservative", aliases:["sodium nitrite","sodium nitrate","potassium nitrite","potassium nitrate","e250","e251","e249","e252"],
    desc:"In cured meats, can form nitrosamines. Processed meat is IARC Group 1 (carcinogenic to humans)."},
-  {name:"Sodium benzoate", tier:"warning", cat:"Preservative", aliases:["sodium benzoate","benzoic acid","potassium benzoate"],
+  {name:"Sodium benzoate", tier:"warning", cat:"Preservative", aliases:["sodium benzoate","benzoic acid","potassium benzoate","e211","e212","e210"],
    desc:"Can form benzene (a known carcinogen) when combined with vitamin C / ascorbic acid, especially in drinks."},
-  {name:"Sulfites", tier:"warning", cat:"Preservative", aliases:["sodium sulfite","sodium bisulfite","sodium metabisulfite","potassium metabisulfite","sulfur dioxide"],
+  {name:"Sulfites", tier:"warning", cat:"Preservative", aliases:["sodium sulfite","sodium bisulfite","sodium metabisulfite","potassium metabisulfite","sulfur dioxide","e220","e221","e222","e223","e224","e228","e226","e227"],
    desc:"Common trigger for asthmatic/allergic reactions; requires disclosure."},
-  {name:"Propyl gallate", tier:"warning", cat:"Preservative", aliases:["propyl gallate"],
+  {name:"Propyl gallate", tier:"warning", cat:"Preservative", aliases:["propyl gallate","e310","octyl gallate","dodecyl gallate","e311","e312"],
    desc:"Synthetic antioxidant with animal-study concerns."},
   {name:"Parabens", tier:"warning", cat:"Preservative", aliases:["propylparaben","butylparaben","methylparaben","ethylparaben","paraben"],
    desc:"Endocrine-disruption concern; EU restricts propyl/butylparaben. Common in cosmetics and some foods."},
 
   // ---- Sweeteners ----
-  {name:"Aspartame", tier:"warning", cat:"Artificial sweetener", aliases:["aspartame"],
+  {name:"Aspartame", tier:"warning", cat:"Artificial sweetener", aliases:["aspartame","e951"],
    desc:"Classified IARC Group 2B (possibly carcinogenic) in 2023, though intake limits were left unchanged."},
-  {name:"Sucralose", tier:"contested", cat:"Artificial sweetener", aliases:["sucralose","splenda"],
+  {name:"Sucralose", tier:"contested", cat:"Artificial sweetener", aliases:["sucralose","splenda","e955"],
    desc:"Gut-microbiome and heat-breakdown concerns raised in recent studies; disputed. Precautionary flag."},
-  {name:"Acesulfame potassium", tier:"contested", cat:"Artificial sweetener", aliases:["acesulfame potassium","acesulfame k","ace k","acesulfame-k"],
+  {name:"Acesulfame potassium", tier:"contested", cat:"Artificial sweetener", aliases:["acesulfame potassium","acesulfame k","ace k","acesulfame-k","e950"],
    desc:"Synthetic sweetener with limited long-term data. Precautionary flag."},
-  {name:"Saccharin", tier:"contested", cat:"Artificial sweetener", aliases:["saccharin"],
+  {name:"Saccharin", tier:"contested", cat:"Artificial sweetener", aliases:["saccharin","e954"],
    desc:"Former Prop 65 listing (delisted); historical bladder-cancer animal findings. Precautionary flag."},
   {name:"High-fructose corn syrup", tier:"contested", cat:"Added sugar", aliases:["high fructose corn syrup","hfcs","high-fructose corn syrup"],
    desc:"Cheap processed sweetener tied to metabolic-health concerns in observational data. Precautionary flag."},
 
   // ---- Flavor / texture ----
-  {name:"MSG", tier:"contested", cat:"Flavor enhancer", aliases:["monosodium glutamate","msg"],
+  {name:"MSG", tier:"contested", cat:"Flavor enhancer", aliases:["monosodium glutamate","msg","e621","e620","e622","e623","e624","e625"],
    desc:"Self-reported sensitivity reactions; controlled studies have not consistently confirmed harm. Precautionary flag."},
-  {name:"Hidden glutamate", tier:"contested", cat:"Flavor enhancer", aliases:["autolyzed yeast","yeast extract","hydrolyzed protein","hydrolysed protein","disodium inosinate","disodium guanylate"],
+  {name:"Hidden glutamate", tier:"contested", cat:"Flavor enhancer", aliases:["autolyzed yeast","yeast extract","hydrolyzed protein","hydrolysed protein","disodium inosinate","disodium guanylate","e631","e627","e635"],
    desc:"Free-glutamate sources that function like MSG without the MSG label. Precautionary flag."},
   {name:'"Natural flavors"', tier:"contested", cat:"Undisclosed additive", aliases:["natural flavor","natural flavors","natural flavour","natural flavours"],
    desc:"A legal catch-all that can hide dozens of undisclosed processing aids and solvents. Flagged for opacity, not a specific toxin."},
-  {name:"Carrageenan", tier:"warning", cat:"Thickener", aliases:["carrageenan"],
+  {name:"Carrageenan", tier:"warning", cat:"Thickener", aliases:["carrageenan","e407"],
    desc:"Seaweed-derived thickener; degraded forms linked to gut inflammation in animal studies."},
-  {name:"Brominated vegetable oil (BVO)", tier:"danger", cat:"Emulsifier", aliases:["brominated vegetable oil","bvo"],
+  {name:"Brominated vegetable oil (BVO)", tier:"danger", cat:"Emulsifier", aliases:["brominated vegetable oil","bvo","e443"],
    desc:"FDA revoked its food authorization (2024); long banned in the EU and Japan over bromine accumulation."},
-  {name:"Propylene glycol", tier:"contested", cat:"Humectant / solvent", aliases:["propylene glycol"],
+  {name:"Propylene glycol", tier:"contested", cat:"Humectant / solvent", aliases:["propylene glycol","e1520"],
    desc:"Also an industrial solvent; approved as food-safe but a common precautionary flag."},
   {name:"Maltodextrin", tier:"contested", cat:"Filler / carb", aliases:["maltodextrin"],
    desc:"Highly processed starch with a very high glycemic index; gut-microbiome concerns raised. Precautionary flag."},
   {name:"Phosphoric acid", tier:"contested", cat:"Acidulant", aliases:["phosphoric acid"],
    desc:"In colas; associated with lower bone density in some observational studies. Precautionary flag."},
 
+  // ---- More colors ----
+  {name:"Green 3 (Fast Green)", tier:"warning", cat:"Artificial color", aliases:["green 3","green no 3","fast green","e143"],
+   desc:"Synthetic dye; bladder-tumor findings in older animal studies. Banned in the EU."},
+  {name:"Citrus Red 2", tier:"danger", cat:"Artificial color", aliases:["citrus red 2","citrus red no 2"],
+   desc:"IARC Group 2B; permitted in the US only for coloring orange peels."},
+  {name:"Orange B", tier:"warning", cat:"Artificial color", aliases:["orange b"],
+   desc:"Dye restricted to hot dog and sausage casings; largely abandoned after safety concerns."},
+
+  // ---- Emulsifiers & gums ----
+  {name:"Polysorbate 80", tier:"warning", cat:"Emulsifier", aliases:["polysorbate 80","e433"],
+   desc:"Synthetic emulsifier linked to gut-microbiome disruption and intestinal inflammation in animal studies."},
+  {name:"Polysorbate 60 / 65", tier:"warning", cat:"Emulsifier", aliases:["polysorbate 60","polysorbate 65","e435","e436","polysorbate 20","polysorbate 40","e432","e434"],
+   desc:"Related synthetic emulsifiers with the same microbiome-disruption concern."},
+  {name:"Carboxymethylcellulose (cellulose gum)", tier:"warning", cat:"Emulsifier / thickener", aliases:["carboxymethylcellulose","carboxymethyl cellulose","cellulose gum","e466"],
+   desc:"Emulsifier tied to gut-barrier and microbiome effects in animal and early human studies."},
+  {name:"Mono- and diglycerides", tier:"contested", cat:"Emulsifier", aliases:["monoglycerides","diglycerides","mono and diglycerides","e471"],
+   desc:"Can carry small amounts of trans fat that don't have to appear on the nutrition panel — a labeling loophole. Precautionary flag."},
+  {name:"DATEM", tier:"contested", cat:"Dough conditioner", aliases:["datem","e472e"],
+   desc:"Industrial dough conditioner; limited long-term human data. Precautionary flag."},
+  {name:"Soy lecithin", tier:"contested", cat:"Emulsifier", aliases:["soy lecithin","soya lecithin","e322"],
+   desc:"Ubiquitous emulsifier, usually hexane-extracted from soy. Flagged for processing, not established harm."},
+  {name:"PGPR", tier:"contested", cat:"Emulsifier", aliases:["pgpr","polyglycerol polyricinoleate","e476"],
+   desc:"Cheap cocoa-butter substitute emulsifier in chocolate. Precautionary flag."},
+  {name:"Xanthan gum", tier:"contested", cat:"Thickener", aliases:["xanthan gum","e415"],
+   desc:"Fermentation-derived thickener; GI effects at high intakes. Precautionary flag."},
+  {name:"Modified food starch", tier:"contested", cat:"Thickener / filler", aliases:["modified food starch","modified corn starch","modified starch","modified tapioca starch","e1404","e1410","e1412","e1414","e1420","e1422","e1440","e1442","e1450","e1451"],
+   desc:"Chemically altered starch; the label doesn't disclose which modification was used. Flagged for opacity."},
+
+  // ---- Sugar alcohols & newer sweeteners ----
+  {name:"Erythritol", tier:"warning", cat:"Sugar alcohol", aliases:["erythritol","e968"],
+   desc:"2023 Cleveland Clinic research associated high blood erythritol with clotting and cardiovascular events; follow-up work ongoing."},
+  {name:"Xylitol", tier:"warning", cat:"Sugar alcohol", aliases:["xylitol","e967"],
+   desc:"2024 research found a similar cardiovascular-event association as erythritol. Also acutely toxic to dogs."},
+  {name:"Sorbitol / maltitol", tier:"contested", cat:"Sugar alcohol", aliases:["sorbitol","maltitol","e420","e965"],
+   desc:"GI distress at modest doses; laxative-effect warning labels required in the EU. Precautionary flag."},
+  {name:"Neotame / advantame", tier:"contested", cat:"Artificial sweetener", aliases:["neotame","advantame","e961","e969"],
+   desc:"Newer aspartame derivatives with much less independent long-term data. Precautionary flag."},
+
+  // ---- More preservatives ----
+  {name:"Potassium sorbate / sorbic acid", tier:"contested", cat:"Preservative", aliases:["potassium sorbate","sorbic acid","e202","e200"],
+   desc:"Common preservative; some in-vitro genotoxicity findings, generally considered low-risk. Precautionary flag."},
+  {name:"Calcium / sodium propionate", tier:"contested", cat:"Preservative", aliases:["calcium propionate","sodium propionate","e282","e281","e280","e283"],
+   desc:"Bread mold inhibitor; small studies raised behavioral and metabolic questions. Precautionary flag."},
+  {name:"EDTA", tier:"contested", cat:"Chelator / preservative", aliases:["calcium disodium edta","disodium edta","edta","e385"],
+   desc:"Synthetic chelating agent; binds minerals. Precautionary flag at typical doses."},
+  {name:"Natamycin", tier:"contested", cat:"Preservative", aliases:["natamycin","e235"],
+   desc:"Antifungal antibiotic used on cheese rinds; antibiotic-in-food objections. Precautionary flag."},
+  {name:"Dimethylpolysiloxane", tier:"contested", cat:"Anti-foaming agent", aliases:["dimethylpolysiloxane","e900"],
+   desc:"Silicone anti-foamer in frying oil (fast food). Flagged for being an industrial silicone in food."},
+
+  // ---- Phosphates & aluminum ----
+  {name:"Phosphate additives", tier:"warning", cat:"Phosphate additive", aliases:["sodium phosphate","trisodium phosphate","disodium phosphate","sodium hexametaphosphate","sodium tripolyphosphate","tetrasodium pyrophosphate","sodium acid pyrophosphate","e338","e339","e340","e341","e343","e450","e451","e452"],
+   desc:"Additive phosphates absorb far more completely than natural food phosphorus; high additive-phosphate load is linked to kidney and cardiovascular strain."},
+  {name:"Aluminum additives", tier:"warning", cat:"Leavening / anticaking", aliases:["sodium aluminum phosphate","sodium aluminium phosphate","sodium aluminum sulfate","aluminum sulfate","sodium aluminosilicate","e541","e554","e520","e521","e522","e523","e173","e555","e556","e559"],
+   desc:"Aluminum-based leavening and anticaking agents; EFSA has flagged that intake from additives can exceed tolerable weekly levels, especially in children."},
+
+  // ---- Catch-alls & processing ----
+  {name:'"Artificial flavors"', tier:"contested", cat:"Undisclosed additive", aliases:["artificial flavor","artificial flavors","artificial flavour","artificial flavours"],
+   desc:"Undisclosed synthetic flavor chemicals under one label. Flagged for opacity."},
+  {name:"Smoke flavor", tier:"contested", cat:"Flavoring", aliases:["smoke flavor","smoke flavour","natural smoke flavor","smoke flavoring"],
+   desc:"The EU let several smoke-flavor authorizations lapse (2024) over genotoxicity concerns with PAH content."},
+  {name:"Interesterified fats", tier:"warning", cat:"Modified fat", aliases:["interesterified"],
+   desc:"The industry's main trans-fat replacement; early studies raise blood-sugar and lipid questions with limited long-term data."},
+  {name:"Olestra", tier:"warning", cat:"Fat substitute", aliases:["olestra","olean"],
+   desc:"Indigestible fat substitute; blocks fat-soluble vitamin absorption and caused GI effects notorious enough to require warning labels."},
+  {name:"Corn syrup", tier:"contested", cat:"Added sugar", aliases:["corn syrup","corn syrup solids","glucose fructose syrup"],
+   desc:"Highly refined glucose syrup. Flagged as a processed-sugar marker."},
+  {name:"Bleached flour", tier:"contested", cat:"Processed grain", aliases:["bleached flour","bleached wheat flour","bleached enriched flour"],
+   desc:"Chemically bleached (chlorine or peroxide agents); the EU doesn't permit flour bleaching. Precautionary flag."},
+
+  // ---- EU / import dyes & misc additives ----
+  {name:"Quinoline Yellow", tier:"warning", cat:"Artificial color", aliases:["quinoline yellow","e104"],
+   desc:"Southampton-six dye; EU hyperactivity warning label required. Not approved for food in the US — shows up in imports."},
+  {name:"Carmoisine (Azorubine)", tier:"warning", cat:"Artificial color", aliases:["carmoisine","azorubine","e122"],
+   desc:"Southampton-six azo dye with the EU warning-label requirement. Not US-approved; found in imported products."},
+  {name:"Ponceau 4R", tier:"warning", cat:"Artificial color", aliases:["ponceau 4r","ponceau","e124"],
+   desc:"Southampton-six azo dye, EU warning label required. Not US-approved."},
+  {name:"Patent Blue V", tier:"warning", cat:"Artificial color", aliases:["patent blue","e131"],
+   desc:"Synthetic dye with allergy reports; not approved for food in the US."},
+  {name:"Green S", tier:"contested", cat:"Artificial color", aliases:["green s","e142"],
+   desc:"Synthetic dye not approved in the US, Canada or Japan. Precautionary flag."},
+  {name:"Brilliant Black", tier:"contested", cat:"Artificial color", aliases:["brilliant black","e151"],
+   desc:"Azo dye not approved in the US; allergy concerns. Precautionary flag."},
+  {name:"Brown HT", tier:"contested", cat:"Artificial color", aliases:["brown ht","e155"],
+   desc:"Azo dye not approved in the US or several other countries. Precautionary flag."},
+  {name:"Carmine / cochineal", tier:"contested", cat:"Natural color", aliases:["carmine","cochineal","carminic acid","e120"],
+   desc:"Insect-derived red; natural, but a documented cause of rare anaphylaxis and an undisclosed-animal-product issue."},
+  {name:"Vegetable carbon (carbon black)", tier:"contested", cat:"Color", aliases:["vegetable carbon","carbon black","e153"],
+   desc:"Not permitted in US food over historical PAH-contamination questions; allowed in the EU."},
+  {name:"Cyclamate", tier:"danger", cat:"Artificial sweetener", aliases:["cyclamate","sodium cyclamate","e952"],
+   desc:"Banned in the US since 1970 after bladder-cancer animal findings (still legal in the EU/Canada — the reverse of the usual pattern). Appears in imported drinks and tabletop sweeteners."},
+  {name:"Konjac", tier:"warning", cat:"Gelling agent", aliases:["konjac","glucomannan","e425"],
+   desc:"Gel so firm it caused fatal chokings in mini-cup jellies — banned in that format in the EU and US. Fine as a flour/noodle."},
+  {name:"Glycerol ester of wood rosin", tier:"contested", cat:"Emulsifier", aliases:["glycerol ester of wood rosin","glycerol ester of rosin","ester gum","e445"],
+   desc:"BVO's usual replacement in citrus drinks. Precautionary flag."},
+  {name:"L-cysteine", tier:"contested", cat:"Dough conditioner", aliases:["l cysteine","l-cysteine","e920"],
+   desc:"Dough conditioner historically sourced from human hair or poultry feathers; now often synthetic, but the label won't say which."},
+  {name:"Cellulose derivatives", tier:"contested", cat:"Thickener", aliases:["methylcellulose","methyl cellulose","hydroxypropyl methylcellulose","hypromellose","e461","e463","e464"],
+   desc:"Chemically modified celluloses used as meat-substitute binders and thickeners. Precautionary flag; less studied than plain cellulose."},
+  {name:"Silicon dioxide", tier:"contested", cat:"Anticaking agent", aliases:["silicon dioxide","silica","e551"],
+   desc:"Anticaking agent under EFSA re-evaluation over nanoparticle content. Precautionary flag."},
+  {name:"Stannous chloride", tier:"warning", cat:"Color retention", aliases:["stannous chloride","e512"],
+   desc:"Tin compound used in canned asparagus and some drinks; tin intake concerns at high levels."},
+  {name:"Polyvinylpyrrolidone (PVP)", tier:"contested", cat:"Stabilizer", aliases:["polyvinylpyrrolidone","povidone","e1201","e1202"],
+   desc:"Synthetic polymer used as a clarifier/stabilizer. Precautionary flag."},
+  {name:"Lysozyme", tier:"contested", cat:"Preservative", aliases:["lysozyme","e1105"],
+   desc:"Egg-derived enzyme preservative in wine and cheese — a hidden egg allergen."},
+  {name:"Ferrocyanides", tier:"contested", cat:"Anticaking agent", aliases:["sodium ferrocyanide","potassium ferrocyanide","e535","e536"],
+   desc:"Anticaking agents in salt. The cyanide is tightly bound and considered stable; flagged as a precaution."},
+  {name:"Ammonium chloride", tier:"contested", cat:"Flavoring / dough agent", aliases:["ammonium chloride","e510"],
+   desc:"Salmiak salt; high intakes disturb acid-base balance. Mostly an issue in Nordic licorice quantities."},
+
   // ---- Cosmetic / external ----
-  {name:"Phthalates (named)", tier:"danger", cat:"Plasticizer (cosmetic)", aliases:["diethyl phthalate","dibutyl phthalate","dep","dbp","dehp","phthalate"],
+  {name:"Phthalates (named)", tier:"danger", cat:"Plasticizer (cosmetic)", aliases:["diethyl phthalate","dibutyl phthalate","dep","dbp","dehp","phthalate","dinp","dchp","diop","didp","diisononyl phthalate","dicyclohexyl phthalate"],
    desc:"Endocrine-disrupting plasticizers. Restricted in EU cosmetics; often hidden under 'fragrance'."},
   {name:"Formaldehyde releasers", tier:"danger", cat:"Preservative (cosmetic)", aliases:["dmdm hydantoin","quaternium-15","imidazolidinyl urea","diazolidinyl urea","formaldehyde"],
    desc:"Slowly release formaldehyde, an IARC Group 1 carcinogen. Common in shampoos and lotions."},
@@ -427,28 +558,90 @@ const DB = [
    desc:"FDA barred it from consumer hand soaps (2016) over safety/resistance concerns."},
   {name:"PFAS / fluoro-ingredients", tier:"danger", cat:"Forever chemical (cosmetic)", aliases:["ptfe","perfluoro","polyfluoro","fluoro","teflon"],
    desc:"'Forever chemicals' — persistent, bioaccumulative. Appear in some cosmetics under fluoro/PTFE names."},
-  {name:"Talc", tier:"warning", cat:"Powder (cosmetic)", aliases:["talc"],
-   desc:"Can be contaminated with asbestos depending on source; subject of major litigation."},
+  {name:"Talc", tier:"warning", cat:"Powder (cosmetic)", aliases:["talc","e553b"],
+   desc:"Can be contaminated with asbestos depending on source. Johnson & Johnson faced tens of thousands of suits over its talc baby powder and discontinued the talc version globally, moving to cornstarch."},
+  {name:"Coal tar", tier:"danger", cat:"Colorant / treatment (cosmetic)", aliases:["coal tar"],
+   desc:"IARC Group 1 (carcinogenic to humans). Found in some dandruff/psoriasis shampoos and dyes; banned in EU cosmetics."},
+  {name:"Toluene", tier:"danger", cat:"Solvent (cosmetic)", aliases:["toluene"],
+   desc:"Neurotoxic solvent found in some nail products; restricted in the EU."},
+  {name:"Lead acetate", tier:"danger", cat:"Colorant (cosmetic)", aliases:["lead acetate"],
+   desc:"Lead compound formerly in progressive hair dyes; FDA repealed its approval (2018)."},
+  {name:"Hydroquinone", tier:"warning", cat:"Skin lightener (cosmetic)", aliases:["hydroquinone"],
+   desc:"Skin-bleaching agent; OTC sales barred in the US (2020), banned in EU cosmetics, ochronosis risk with prolonged use."},
+  {name:"Methylisothiazolinone (MIT)", tier:"warning", cat:"Preservative (cosmetic)", aliases:["methylisothiazolinone","methylchloroisothiazolinone"],
+   desc:"Potent contact allergen; the EU banned it from leave-on cosmetics after an allergy epidemic."},
+  {name:"Cyclic silicones", tier:"warning", cat:"Silicone (cosmetic)", aliases:["cyclopentasiloxane","cyclotetrasiloxane","cyclomethicone"],
+   desc:"D4/D5 silicones; the EU restricts them in rinse-off and (from 2027) leave-on products over persistence and bioaccumulation."},
+  {name:"Octinoxate", tier:"warning", cat:"UV filter (cosmetic)", aliases:["octinoxate","ethylhexyl methoxycinnamate","octyl methoxycinnamate"],
+   desc:"UV filter with endocrine-activity findings; banned in some reef-protection jurisdictions alongside oxybenzone."},
+  {name:"Homosalate", tier:"contested", cat:"UV filter (cosmetic)", aliases:["homosalate"],
+   desc:"UV filter the EU cut allowed concentrations for over endocrine-activity questions. Precautionary flag."},
+  {name:"Retinyl palmitate", tier:"contested", cat:"Vitamin A ester (cosmetic)", aliases:["retinyl palmitate"],
+   desc:"Photocarcinogenicity questions raised in FDA/NTP animal work when applied to sun-exposed skin; disputed. Precautionary flag."},
+  {name:"Mineral oil / petrolatum", tier:"contested", cat:"Occlusive (cosmetic)", aliases:["mineral oil","petrolatum","paraffinum liquidum"],
+   desc:"Petroleum-derived; the concern is PAH contamination in poorly refined grades. Pharmaceutical-grade is considered clean. Precautionary flag."},
+  {name:"Aluminum salts (antiperspirant)", tier:"contested", cat:"Antiperspirant active", aliases:["aluminum chlorohydrate","aluminium chlorohydrate","aluminum zirconium"],
+   desc:"Long-debated breast-cancer and neurological hypotheses; major reviews have not confirmed them. Precautionary flag."},
+  {name:"Triclocarban", tier:"warning", cat:"Antibacterial (cosmetic)", aliases:["triclocarban"],
+   desc:"Banned from consumer hand soaps by the FDA (2016) alongside triclosan."},
+
+  // ---- Industrial solvents (rarely on labels — see exposure panel) ----
+  {name:"Methylene chloride", tier:"danger", cat:"Industrial solvent", aliases:["methylene chloride","dichloromethane"],
+   desc:"IARC Group 2A (probably carcinogenic). Used to decaffeinate some coffee and manufacture additives — a residue, so it never appears on food labels. Does appear on some adhesive/cleaner labels. Subject of a pending FDA food-use petition."},
+  {name:"Trichloroethylene", tier:"danger", cat:"Industrial solvent", aliases:["trichloroethylene","tce"],
+   desc:"IARC Group 1 (carcinogenic to humans); EPA banned most uses (2024). Still permitted in some food-additive manufacturing — as a residue, invisible on labels."},
+  {name:"1,2-Dichloroethane", tier:"danger", cat:"Industrial solvent", aliases:["ethylene dichloride","dichloroethane"],
+   desc:"IARC Group 2B. Permitted in manufacturing certain color additives and food ingredients; petitioners are seeking removal. A residue — never on food labels."},
+  {name:"Benzene", tier:"danger", cat:"Industrial solvent", aliases:["benzene"],
+   desc:"IARC Group 1 (carcinogenic to humans). Can form in drinks from benzoate + vitamin C. As a contaminant it forced real recalls: Neutrogena and Aveeno spray sunscreens (J&J, 2021) and Dove, Nexxus and TRESemmé dry shampoos (Unilever, 2022). Never listed on labels."},
+
+  // ---- Litigation-flagged (active lawsuits / mass torts) ----
+  {name:"Diacetyl", tier:"danger", cat:"Butter flavoring", aliases:["diacetyl","artificial butter flavor","butter flavoring"],
+   desc:"The 'popcorn lung' chemical — inhalation causes bronchiolitis obliterans, an irreversible lung disease established through worker lawsuits. Reformulations often swap in the closely related 2,3-pentanedione. Main risk is inhaling it (microwave popcorn steam, vape flavors)."},
+  {name:"Benzoyl peroxide", tier:"warning", cat:"Acne active (cosmetic)", aliases:["benzoyl peroxide"],
+   desc:"Valisure lab testing (2024) found BPO acne products can degrade into benzene — a known carcinogen — far above FDA limits, especially with heat; flagged products spanned the market including Proactiv, Clearasil, PanOxyl and La Roche-Posay Effaclar, and consumer lawsuits followed. Heat is the trigger, and delivery trucks are ovens: buy in-store rather than mail-order in summer, store cool, replace old tubes."},
+  {name:"Octocrylene", tier:"warning", cat:"UV filter (cosmetic)", aliases:["octocrylene"],
+   desc:"Sunscreen filter shown to degrade into benzophenone (a possible carcinogen) as products age; subject of petitions and litigation. Fresher product = less degradation; mineral (zinc/titanium) filters avoid it."},
 ];
 
 /* ---------- Packaging info panel ---------- */
 const PKG = [
   {id:"can", name:"Canned & metal containers", key:/(^|\W)(can|tin|conserve|aluminium|aluminum|metal)(\W|$)/,
-   desc:"Metal cans are usually lined with epoxy resin that can leach BPA or its substitute BPS into food — worse with acidic (tomatoes) or fatty contents. 'BPA-free' linings often just swap in BPS, a close chemical cousin."},
-  {id:"plastic", name:"Plastic bottles, tubs & trays", key:/plastic|pet\b|hdpe|tub|bottle|tray/,
-   desc:"Plastics #3, #6 and #7 can leach bisphenols and phthalates, especially with fatty or acidic contents, heat, or reuse. #1, #2, #4, #5 are the lower-migration choices."},
-  {id:"heat", name:"Heating food in its plastic packaging", key:/microwav/,
-   desc:"Heat sharply accelerates migration of plasticizers and bisphenols into food. Transfer to glass or ceramic before microwaving — including 'microwave-safe' plastic, which only means the container survives, not that nothing migrates."},
-  {id:"grease", name:"Grease-resistant wrappers & takeout fiber bowls", key:/wrapper|paperboard|fiber|fibre/,
-   desc:"Fast-food wrappers, molded-fiber bowls and grease-proof papers are often treated with PFAS 'forever chemicals' that migrate into oily food. Several states have begun banning PFAS food packaging."},
+   desc:"Most cans are lined with a plastic resin that can leach BPA — or its swap-in cousin BPS — into the food. Acidic foods (tomatoes) and fatty foods pull the most out. 'BPA-free' on a can often just means BPS instead.",
+   act:["Buy tomatoes, sauces and soups in glass jars or cartons when you can","Never store leftovers in the opened can — move to glass, even in the fridge","Rinse canned beans and vegetables before using; it measurably cuts what transferred"]},
+  {id:"plastic", name:"Plastic bottles, tubs & takeout containers", key:/plastic|pet\b|hdpe|tub|bottle|tray/,
+   desc:"Some plastics shed hormone-disrupting chemicals into food, especially with heat, fat, acid, or age. In real-life terms, the risky ones are styrofoam anything, flexible squeeze bottles, and old scratched-up containers.",
+   act:["THE RULE: glass and steel are the default at home — storage jars, containers, water bottles, baby bottles. Plastic is the exception you tolerate, not the norm. A one-time ~$30 glass container set replaces the plastic drawer permanently","At the store, plastic is often the only option (milk, yogurt, berries) — that's fine for cold storage of its original contents; the danger zones are heat, fat, acid, age and reuse, not the fridge","Never buy: styrofoam cups, foam takeout boxes, foam plates — worst of the common plastics, especially with hot food","Transit heat already happened: bottled drinks often crossed the country in 130°F+ trailers you can't audit — treat bottled water as emergency supply, not a staple, and skip sun-baked outdoor pallet displays","Whatever plastic remains: toss it once scratched, cloudy or stained, and never give bottles a second life as your daily refill"]},
+  {id:"heat", name:"Heating food in plastic", key:/microwav/,
+   desc:"Heat is the accelerator for everything plastic leaches. 'Microwave-safe' only means the container survives the microwave — it says nothing about what migrates into your food.",
+   act:["Absolute rule: food never gets heated in plastic. Frozen meals, soup cups, leftovers — onto a ceramic plate or into a glass bowl first, every time. 10 extra seconds, biggest single win on this list","Never microwave anything in cling film or a plastic bag","If you still own plastic containers, hand-wash them; dishwasher heat ages them fast — better yet, this is the excuse to switch them to glass"]},
+  {id:"grease", name:"Fast-food wrappers & 'eco' fiber bowls", key:/wrapper|paperboard|fiber|fibre/,
+   desc:"Grease-proof paper doesn't exist naturally — wrappers, fry bags, and those beige compostable-looking molded-fiber bowls are often treated with PFAS 'forever chemicals' that move into hot oily food.",
+   act:["Unwrap burgers and dump fries out of the bag when you sit down instead of letting them sit and soak","Be most skeptical of the earthy-looking molded-fiber bowls for hot, oily food — 'compostable' and 'PFAS-treated' have often been the same bowl","Plain foil is fine — it's one of the safer wraps"]},
   {id:"popcorn", name:"Microwave popcorn bags", key:/popcorn/,
-   desc:"Bag linings have been a documented PFAS source; heat drives transfer into the oil. Stovetop or air-popped kernels avoid it entirely."},
+   desc:"The bag lining has been a documented PFAS source, and the butter-flavor steam is where diacetyl ('popcorn lung' chemical) exposure happens. Heat drives both into the popcorn and the air.",
+   act:["Stovetop pot or a $20 air popper + your own butter: better popcorn, zero bag chemistry","If you do use bags: open away from your face and don't inhale that first puff of steam"]},
   {id:"cling", name:"Plastic wrap / cling film", key:/film|cling|wrap\b/,
-   desc:"Some films use phthalate or adipate plasticizers that migrate into fatty foods on direct contact — keep film off the food surface, especially cheese and meat."},
+   desc:"Some cling films are softened with plasticizers that transfer into fatty food on direct contact — cheese and meat are the worst pairings.",
+   act:["Best move: don't own cling film — a glass container with a lid does the same job every time","Re-wrap deli cheese and meat in wax paper or a container as soon as it's home","If film is what's on hand: drape it over the bowl rim, never touching the food, and never in the microwave"]},
   {id:"receipt", name:"Thermal receipts", key:null,
-   desc:"Thermal paper is coated with BPA/BPS that transfers to skin on handling and absorbs more readily with wet or greasy hands. Decline receipts you don't need."},
+   desc:"That shiny receipt paper is coated in BPA or BPS, and it transfers to skin on contact — absorbing far faster through wet, greasy, or freshly-sanitized hands.",
+   act:["Say 'no receipt, thanks' or take email receipts — the easiest opt-out in this whole list","Never grab a receipt right after using hand sanitizer — it multiplies absorption","If you handle receipts all day for work, that's what gloves are for"]},
   {id:"pvc", name:"Vinyl / PVC products", key:null,
-   desc:"Flexible vinyl (shower curtains, cables, some toys and mats) is commonly softened with phthalates that off-gas and transfer on contact."},
+   desc:"Flexible vinyl — shower curtains, cheap air mattresses, some toys and mats — is softened with phthalates. That heavy 'new shower curtain smell' IS the plasticizer off-gassing.",
+   act:["The smell test is real: if a soft plastic product reeks out of the package, air it outside for days or return it","Choose PEVA or fabric shower curtains — a couple dollars more, none of the off-gassing","For kids' toys, 'phthalate-free' on the label is one claim actually worth looking for"]},
+  {id:"solvents", name:"Processing solvents — the invisible category", key:null,
+   desc:"Methylene chloride, trichloroethylene, 1,2-dichloroethane and benzene are legally used to make some additives, colors, and decaf coffee. They're residues, not ingredients — no label will ever list them.",
+   act:["Decaf drinkers: buy 'Swiss Water Process' decaf — it says so right on the bag, and it means no methylene chloride","Skip drinks that pair a benzoate preservative with vitamin C / citrus — that combo can form benzene in the bottle (the scanner flags sodium benzoate for exactly this)","Using paint strippers or strong adhesives? Outside or with a fan — same chemicals, much bigger doses"]},
+  {id:"microplastic", name:"Microplastics", key:null,
+   desc:"Plastic particles now show up in bottled water (often far more than tap), sea salt, and food stored or heated in plastic. Not on any label; the FDA is still building detection methods. A 2026 class action alleges Campbell's microwavable soup cups leach microplastics when heated as directed.",
+   act:["Filtered tap water in a steel or glass bottle beats bottled water — bottled is the single biggest dietary microplastic source measured, and shedding rises with the transit and storage heat you never see","Microwavable soup cups: pour into a bowl first, always","Toss scratched plastic containers and black plastic cooking utensils — both are heavy shedders"]},
+  {id:"relaxer", name:"Chemical hair relaxers & straighteners", key:null,
+   desc:"Subject of one of the largest active mass torts in the US (11,000+ federal cases as of 2026), alleging links to uterine and endometrial cancer — anchored by an NIH study of ~34,000 women finding roughly doubled uterine-cancer risk with frequent use. Named defendants include L'Oréal and its SoftSheen-Carson brands (Dark & Lovely, Optimum), Revlon, Strength of Nature (Just For Me, Motions, African Pride), and Namaste (ORS Olive Oil relaxers) — allegations awaiting trial, not verdicts.",
+   act:["Scan any relaxer's ingredient label with this app — the suspect chemicals (fragrance, formaldehyde releasers, parabens) are all in the database","Stretch time between touch-ups; the NIH risk signal was strongest at 4+ uses per year","Salon 'keratin'/'Brazilian blowout' treatments release formaldehyde when heated — ask what's in it before booking"]},
+  {id:"metals", name:"Heavy metals — lead, cadmium, arsenic, mercury", key:null,
+   desc:"Contaminants, never ingredients — no label discloses them. Named in testing & litigation: a 2021 Congressional report published internal data showing elevated metals at Gerber, Beech-Nut, HappyBABY, Earth's Best, Plum Organics, Sprout, and Parent's Choice (Walmart); Consumer Reports testing found the most lead/cadmium in dark chocolate from Hershey's Special Dark, Trader Joe's dark bars, and Theo; a Jan 2026 suit alleges KIND Dark Chocolate Clusters exceed lead limits. Brands reformulate — treat these as dated snapshots.",
+   act:["Babies: oat or multigrain cereal instead of rice cereal (rice concentrates arsenic), and rotate baby-food brands rather than loyalty to one","Chocolate: milk chocolate carries far less than dark; among darks, CR's cleaner picks included Mast and Ghirardelli 86%","Spices: the 2023–24 lead-poisoning recalls were discount-import cinnamon — buy major-brand spices, and rotate","Variety is the actual defense: no single brand or food dominating the diet"]},
 ];
 
 /* ---------- Build packaging panel ---------- */
@@ -456,8 +649,10 @@ const pkgList=document.getElementById('pkglist');
 PKG.forEach(p=>{
   const d=document.createElement('div');
   d.className='pkgcard'; d.id='pkg-'+p.id;
+  const acts=(p.act||[]).map(a=>`<div class="pa">${a}</div>`).join('');
   d.innerHTML=`<div class="prow"><span class="pt">${p.name}</span><span class="detected" style="display:none">Detected on this product</span></div>
-    <div class="pdesc">${p.desc}</div>`;
+    <div class="pdesc">${p.desc}</div>
+    ${acts?`<div class="pact"><div class="palabel">What to do</div>${acts}</div>`:''}`;
   pkgList.appendChild(d);
 });
 
@@ -687,6 +882,8 @@ function showProduct(p, code, srcLabel){
     .filter(Boolean).join(" ").toLowerCase();
   const detected=markDetectedPackaging(pkgText);
 
+  lastAdditives=(p.additives_tags||[]).map(t=>String(t).replace(/^[a-z]{2}:/,'').toLowerCase());
+
   if(ing){
     document.getElementById('ingredients').value=ing;
     bcState.textContent="✓ Found. Inspecting…"+(detected.length?" Packaging flags marked in the panel below.":"");
@@ -808,12 +1005,68 @@ function run(){
     }
   }
 
+/* ---------- Recognized low-concern additives (census classification) ----------
+   E-codes with long safety records: vitamins, plain acids, mineral salts, plant gums.
+   Listed so the additive census can say "low concern" instead of "unknown". */
+const BENIGN = {
+  e100:"Curcumin (turmeric)", e101:"Riboflavin (B2)", e140:"Chlorophyll", e141:"Chlorophyllin",
+  e150a:"Plain caramel (class I)", e160a:"Carotenes", e160c:"Paprika extract", e160d:"Lycopene",
+  e161b:"Lutein", e162:"Beetroot red", e163:"Anthocyanins", e170:"Calcium carbonate",
+  e260:"Acetic acid (vinegar)", e262:"Sodium acetate", e263:"Calcium acetate",
+  e270:"Lactic acid", e290:"Carbon dioxide", e296:"Malic acid", e297:"Fumaric acid",
+  e300:"Ascorbic acid (vitamin C)", e301:"Sodium ascorbate", e302:"Calcium ascorbate",
+  e304:"Ascorbyl palmitate", e306:"Tocopherols (vitamin E)", e307:"Alpha-tocopherol",
+  e308:"Gamma-tocopherol", e309:"Delta-tocopherol", e315:"Erythorbic acid", e316:"Sodium erythorbate",
+  e325:"Sodium lactate", e326:"Potassium lactate", e327:"Calcium lactate",
+  e330:"Citric acid", e331:"Sodium citrates", e332:"Potassium citrates", e333:"Calcium citrates",
+  e334:"Tartaric acid", e335:"Sodium tartrates", e336:"Potassium tartrates (cream of tartar)",
+  e350:"Sodium malates", e351:"Potassium malate", e352:"Calcium malates",
+  e392:"Rosemary extract", e400:"Alginic acid", e401:"Sodium alginate", e402:"Potassium alginate",
+  e404:"Calcium alginate", e406:"Agar", e410:"Locust bean gum", e412:"Guar gum",
+  e414:"Gum arabic (acacia)", e416:"Karaya gum", e417:"Tara gum", e418:"Gellan gum",
+  e422:"Glycerol", e440:"Pectin", e460:"Cellulose", e470a:"Fatty acid salts", e470b:"Magnesium stearate",
+  e472a:"Acetic acid esters", e472b:"Lactic acid esters", e472c:"Citric acid esters",
+  e500:"Sodium carbonates (baking soda)", e501:"Potassium carbonates", e503:"Ammonium carbonates",
+  e504:"Magnesium carbonates", e507:"Hydrochloric acid", e508:"Potassium chloride",
+  e509:"Calcium chloride", e511:"Magnesium chloride", e514:"Sodium sulfate", e516:"Calcium sulfate",
+  e524:"Sodium hydroxide", e526:"Calcium hydroxide", e530:"Magnesium oxide",
+  e570:"Fatty acids", e574:"Gluconic acid", e575:"Glucono delta-lactone", e576:"Sodium gluconate",
+  e577:"Potassium gluconate", e578:"Calcium gluconate",
+  e901:"Beeswax", e903:"Carnauba wax", e904:"Shellac", e941:"Nitrogen", e948:"Oxygen",
+  e957:"Thaumatin", e960:"Steviol glycosides (stevia)", e960a:"Steviol glycosides (stevia)",
+  e1103:"Invertase", e1200:"Polydextrose", e1510:"Ethanol",
+};
+
+// Complete additive census from the product database (barcode scans only)
+  let addHtml="";
+  if(lastAdditives && lastAdditives.length){
+    addHtml=`<div class="shead">All additives identified for this product (${lastAdditives.length})</div>`;
+    for(const code of lastAdditives){
+      const entry=matchEntry(normalize(code));
+      const label=code.toUpperCase();
+      if(entry){
+        addHtml+=`<details class="ingrow ${entry.tier}">
+          <summary><span class="tierdot"></span>${escapeHtml(label)} — ${escapeHtml(entry.name)}<span class="caret">▶</span></summary>
+          <div class="ingdetail">
+            <span class="chit ${entry.tier}">${TIER_LABEL[entry.tier]}</span><span class="cat">${escapeHtml(entry.cat)}</span>
+            <div class="desc">${escapeHtml(entry.desc)}</div>
+          </div>
+        </details>`;
+      }else if(BENIGN[code]){
+        addHtml+=`<div class="ingrow plain benign">${escapeHtml(label)} — ${escapeHtml(BENIGN[code])} · recognized, low concern</div>`;
+      }else{
+        addHtml+=`<div class="ingrow plain unclassified">${escapeHtml(label)} — additive present, not classified in the local database. Worth a look-up if you don't recognize it.</div>`;
+      }
+    }
+  }
+  lastAdditives=null;
+
   const total=counts.danger+counts.warning+counts.contested;
   let body;
   if(tokens.length>=2){
-    body=`<div class="ingsec"><div class="shead">Ingredients — tap a flagged one</div>${rowsHtml}${extrasHtml}</div>`;
-  }else if(total>0){
-    body=`<div class="ingsec">${extrasHtml||""}${rowsHtml}</div>`;
+    body=`<div class="ingsec"><div class="shead">Ingredients — tap a flagged one</div>${rowsHtml}${extrasHtml}${addHtml}</div>`;
+  }else if(total>0 || addHtml){
+    body=`<div class="ingsec">${extrasHtml||""}${rowsHtml}${addHtml}</div>`;
   }else{
     body=`<div class="clearbox">No database matches in this list.<br>That means nothing on the flag list appeared — not a clean bill of health. Short, vague, or poorly-read text can hide plenty.</div>`;
   }
@@ -832,6 +1085,7 @@ function run(){
 
 /* ---------- Scan log ---------- */
 let currentLabel=null;
+let lastAdditives=null;   // additive E-codes from the last barcode lookup
 let suppressLog=false;
 let memHistory=[];
 const HKEY="labelInspectorLog";
