@@ -745,6 +745,34 @@ document.addEventListener('paste', (e)=>{
   }
 });
 
+/* Common label vocabulary — used to verify a photo actually contains an ingredient list */
+const LABEL_VOCAB=new Set(("ingredients ingredient contains water sugar salt oil acid flour syrup milk soy wheat corn rice oat "+
+ "natural artificial flavor flavors flavour extract starch protein vitamin sodium potassium calcium citric lecithin "+
+ "yeast cocoa butter cream whey gum dextrose fructose glucose maltodextrin preservative color colour colors spices "+
+ "spice garlic onion gluten egg palm canola sunflower tomato cheese enzymes cultures vinegar honey concentrate juice "+
+ "powder seed niacin riboflavin folic iron zinc organic modified hydrogenated syrups solids paprika whole grain bran "+
+ "aqua glycerin glycerol fragrance parfum alcohol dimethicone acrylates phenoxyethanol citrate benzoate sorbate "+
+ "phosphate carbonate chloride oxide dioxide hydroxide stearate sulfate laureth lauryl tocopherol carrageenan pectin").split(" "));
+
+function validateOcr(text, confidence){
+  const words=text.toLowerCase().split(/[^a-z0-9]+/).filter(w=>w.length>=2);
+  if(words.length<4) return {ok:false, why:"too little text"};
+  // word-shaped ratio: has a vowel, not absurdly long, mostly letters
+  const shaped=words.filter(w=>/[aeiouy]/.test(w) && w.length<=20 && /^[a-z0-9]+$/.test(w));
+  const shapedRatio=shaped.length/words.length;
+  // vocabulary hits: common label words + this app's own flag database
+  let vocabHits=0;
+  for(const w of words){ if(LABEL_VOCAB.has(w)) vocabHits++; }
+  const dbHits=findAllFlags(text).length;
+  const conf=(typeof confidence==="number")?confidence:0;
+
+  // strong accept: recognizable label vocabulary or database matches
+  if(vocabHits>=3 || dbHits>=1 || /ingredient/i.test(text)) return {ok:true};
+  // structural accept: clean, confident text with list punctuation
+  if(conf>=65 && shapedRatio>=0.7 && (text.match(/,/g)||[]).length>=3) return {ok:true};
+  return {ok:false, why:(conf&&conf<50)?"low read confidence":"no recognizable label content"};
+}
+
 async function runOcr(url){
   preview.src=url; preview.style.display='block';
   if(typeof Tesseract==="undefined"){
@@ -757,13 +785,18 @@ async function runOcr(url){
       logger:m=>{ if(m.status==='recognizing text'){ ocrState.textContent="Reading label… "+Math.round(m.progress*100)+"%"; } }
     });
     const text=(data && data.text || "").trim();
-    if(text && text.replace(/\s/g,"").length>=8){
-      document.getElementById('ingredients').value=text;
-      ocrState.textContent="✓ Read. Inspecting — fix any misread words in the paste tab if needed.";
-      run();
-    }else{
+    if(!text || text.replace(/\s/g,"").length<8){
       ocrState.textContent="Couldn't read useful text. Get closer, flatten the label, avoid glare — or paste it in.";
+      return;
     }
+    const v=validateOcr(text, data && data.confidence);
+    if(!v.ok){
+      ocrState.textContent="✗ That doesn't look like an ingredient label ("+v.why+"). Fill the frame with just the ingredient text — flat, well lit, no glare — and try again.";
+      return;
+    }
+    document.getElementById('ingredients').value=text;
+    ocrState.textContent="✓ Read. Inspecting — fix any misread words in the paste tab if needed.";
+    run();
   }catch(err){
     ocrState.textContent="Reading failed on this device. Use the paste tab instead.";
   }
